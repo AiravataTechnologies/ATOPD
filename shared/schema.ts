@@ -7,25 +7,91 @@ export const hospitalSchema = z.object({
   _id: z.string().optional(),
   hospitalId: z.string(), // Unique hospital ID (e.g., HOS0001)
   hospitalCode: z.string(), // Unique hospital code (e.g., AT_MH_001)
+  
+  // Basic Information
   name: z.string(),
-  address: z.string(),
-  contactNumber: z.string(),
+  registrationNumber: z.string(),
+  hospitalType: z.enum(["Private", "Government", "Trust", "Clinic", "Other"]),
+  specializations: z.array(z.string()).default([]), // Multi-select specializations
+  
+  // Address & Contact Details
+  addressLine1: z.string(),
+  addressLine2: z.string().optional(),
+  city: z.string(),
+  state: z.string(),
+  pinCode: z.string(),
+  contactNumber: z.string(), // Landline/Mobile
   email: z.string().email(),
-  licenseNumber: z.string(),
-  hospitalType: z.string(),
-  opdDepartments: z.array(z.string()).default([]), // Changed from numberOfOpdDepartments
-  hospitalImage: z.string().optional(), // Base64 image or URL
-  description: z.string().optional(),
   website: z.string().optional(),
-  establishedYear: z.number().optional(),
+  
+  // Administrator/Owner Details
+  adminFullName: z.string(),
+  adminDesignation: z.string(), // Owner, Director, Admin
+  adminMobileNumber: z.string(),
+  adminEmailId: z.string().email(),
+  
+  // Licensing & Accreditation
+  licenseNumber: z.string(), // Hospital License Number/Certificate No.
+  issuingAuthority: z.string(),
+  licenseValidityDate: z.date(),
+  nabhAccreditation: z.boolean().default(false),
+  gstNumber: z.string().optional(),
+  
+  // Facilities/Infrastructure
   totalBeds: z.number().optional(),
+  icuBeds: z.number().optional(),
   emergencyServices: z.boolean().default(false),
+  pharmacyInside: z.boolean().default(false),
+  ambulanceService: z.boolean().default(false),
+  
+  // Login & Access Setup
+  username: z.string().optional(), // Auto-generated or manually set
+  password: z.string().optional(), // Encrypted
+  userRole: z.string().default("Hospital Admin"),
+  
+  // Document URLs (stored as base64 or file paths)
+  registrationCertificate: z.string().optional(),
+  licenseDocument: z.string().optional(),
+  gstCertificate: z.string().optional(),
+  hospitalImage: z.string().optional(), // Logo for dashboard and reports
+  
+  // Legacy fields for compatibility
+  opdDepartments: z.array(z.string()).default([]),
+  description: z.string().optional(),
+  establishedYear: z.number().optional(),
+  
   createdAt: z.date().default(() => new Date()),
   updatedAt: z.date().default(() => new Date()),
 });
 
 // Predefined OPD department types
 export const OPD_DEPARTMENTS = ["General", "ENT", "Cardio", "Gyno"] as const;
+
+// Predefined specializations
+export const SPECIALIZATIONS = [
+  "General",
+  "Cardiology", 
+  "Orthopedic",
+  "ENT",
+  "Gynecology",
+  "Pediatrics",
+  "Dermatology",
+  "Ophthalmology",
+  "Psychiatry",
+  "Neurology",
+  "Gastroenterology",
+  "Urology",
+  "Oncology",
+  "Pulmonology",
+  "Nephrology",
+  "Endocrinology",
+  "Rheumatology",
+  "Emergency Medicine",
+  "Anesthesiology",
+  "Radiology",
+  "Pathology",
+  "Other"
+] as const;
 
 // OPD schema
 export const opdSchema = z.object({
@@ -115,6 +181,8 @@ export const insertHospitalSchema = hospitalSchema.omit({
   hospitalCode: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  licenseValidityDate: z.coerce.date(),
 });
 
 export const updateHospitalSchema = hospitalSchema.omit({
@@ -124,6 +192,7 @@ export const updateHospitalSchema = hospitalSchema.omit({
   createdAt: true,
 }).extend({
   updatedAt: z.date().default(() => new Date()),
+  licenseValidityDate: z.coerce.date(),
 });
 
 export const insertOpdSchema = opdSchema.omit({

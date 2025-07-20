@@ -11,10 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { insertHospitalSchema, updateHospitalSchema, type InsertHospital, type UpdateHospital, type Hospital, OPD_DEPARTMENTS } from "@shared/schema";
+import { insertHospitalSchema, updateHospitalSchema, type InsertHospital, type UpdateHospital, type Hospital, OPD_DEPARTMENTS, SPECIALIZATIONS } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Building2, Camera, Eye, Edit, Trash2, MapPin, Phone, Mail, Globe, Calendar } from "lucide-react";
+import { Plus, Building2, Camera, Eye, Edit, Trash2, MapPin, Phone, Mail, Globe, Calendar, FileText, Shield, Bed, Users, Upload, X, Search } from "lucide-react";
 
 export default function HospitalRegistration() {
   const { toast } = useToast();
@@ -26,22 +28,63 @@ export default function HospitalRegistration() {
   const [viewingHospital, setViewingHospital] = useState<Hospital | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
   const form = useForm<InsertHospital>({
     resolver: zodResolver(insertHospitalSchema),
     defaultValues: {
+      // Basic Information
       name: "",
-      address: "",
+      registrationNumber: "",
+      hospitalType: "Private",
+      specializations: [],
+      
+      // Address & Contact Details
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      state: "",
+      pinCode: "",
       contactNumber: "",
       email: "",
-      licenseNumber: "",
-      hospitalType: "",
-      opdDepartments: [],
-      hospitalImage: "",
-      description: "",
       website: "",
-      establishedYear: undefined,
+      
+      // Administrator/Owner Details
+      adminFullName: "",
+      adminDesignation: "",
+      adminMobileNumber: "",
+      adminEmailId: "",
+      
+      // Licensing & Accreditation
+      licenseNumber: "",
+      issuingAuthority: "",
+      licenseValidityDate: new Date(),
+      nabhAccreditation: false,
+      gstNumber: "",
+      
+      // Facilities/Infrastructure
       totalBeds: undefined,
+      icuBeds: undefined,
       emergencyServices: false,
+      pharmacyInside: false,
+      ambulanceService: false,
+      
+      // Login & Access Setup
+      username: "",
+      password: "",
+      userRole: "Hospital Admin",
+      
+      // Documents
+      hospitalImage: "",
+      registrationCertificate: "",
+      licenseDocument: "",
+      gstCertificate: "",
+      
+      // Legacy fields
+      opdDepartments: [],
+      description: "",
+      establishedYear: undefined,
     },
   });
 
@@ -147,11 +190,11 @@ export default function HospitalRegistration() {
     },
   });
 
-  const onSubmit = (data: Omit<InsertHospital, "opdDepartments">) => {
-    if (selectedDepartments.length === 0) {
+  const onSubmit = (data: InsertHospital) => {
+    if (selectedSpecializations.length === 0) {
       toast({
         title: "Error",
-        description: "Please select at least one OPD department",
+        description: "Please select at least one specialization",
         variant: "destructive",
       });
       return;
@@ -159,8 +202,9 @@ export default function HospitalRegistration() {
 
     const hospitalData: InsertHospital = {
       ...data,
-      hospitalImage: hospitalImage || "",
+      specializations: selectedSpecializations,
       opdDepartments: selectedDepartments,
+      hospitalImage: hospitalImage || "",
     };
 
     createHospitalMutation.mutate(hospitalData);
@@ -179,6 +223,18 @@ export default function HospitalRegistration() {
       setSelectedDepartments(prev => [...prev, customDepartment.trim()]);
       setCustomDepartment("");
     }
+  };
+
+  const toggleSpecialization = (spec: string) => {
+    setSelectedSpecializations(prev => 
+      prev.includes(spec) 
+        ? prev.filter(s => s !== spec)
+        : [...prev, spec]
+    );
+  };
+
+  const removeSpecialization = (spec: string) => {
+    setSelectedSpecializations(prev => prev.filter(s => s !== spec));
   };
 
   const removeDepartment = (dept: string) => {
@@ -207,158 +263,457 @@ export default function HospitalRegistration() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="name">Hospital Name *</Label>
-                  <Input
-                    id="name"
-                    {...form.register("name")}
-                    placeholder="Enter hospital name"
-                  />
-                  {form.formState.errors.name && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.name.message}
-                    </p>
-                  )}
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              
+              {/* Section 1: Basic Information */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">1. Basic Information</h3>
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="name">Hospital Name *</Label>
+                    <Input
+                      id="name"
+                      {...form.register("name")}
+                      placeholder="Enter hospital name"
+                    />
+                    {form.formState.errors.name && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.name.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div>
-                  <Label htmlFor="hospitalType">Hospital Type *</Label>
-                  <Select onValueChange={(value) => form.setValue("hospitalType", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select hospital type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="General">General</SelectItem>
-                      <SelectItem value="Multispecialty">Multispecialty</SelectItem>
-                      <SelectItem value="Specialized">Specialized</SelectItem>
-                      <SelectItem value="Teaching">Teaching Hospital</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.hospitalType && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.hospitalType.message}
-                    </p>
-                  )}
-                </div>
+                  <div>
+                    <Label htmlFor="registrationNumber">Hospital Registration Number *</Label>
+                    <Input
+                      id="registrationNumber"
+                      {...form.register("registrationNumber")}
+                      placeholder="Enter registration number"
+                    />
+                    {form.formState.errors.registrationNumber && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.registrationNumber.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="md:col-span-2">
-                  <Label htmlFor="address">Address *</Label>
-                  <Textarea
-                    id="address"
-                    {...form.register("address")}
-                    placeholder="Enter complete address"
-                    rows={3}
-                  />
-                  {form.formState.errors.address && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.address.message}
-                    </p>
-                  )}
-                </div>
+                  <div>
+                    <Label htmlFor="hospitalType">Type of Hospital *</Label>
+                    <Select onValueChange={(value) => form.setValue("hospitalType", value as any)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select hospital type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Private">Private</SelectItem>
+                        <SelectItem value="Government">Government</SelectItem>
+                        <SelectItem value="Trust">Trust</SelectItem>
+                        <SelectItem value="Clinic">Clinic</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.hospitalType && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.hospitalType.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div>
-                  <Label htmlFor="contactNumber">Contact Number *</Label>
-                  <Input
-                    id="contactNumber"
-                    {...form.register("contactNumber")}
-                    placeholder="+91 9999999999"
-                  />
-                  {form.formState.errors.contactNumber && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.contactNumber.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    {...form.register("email")}
-                    placeholder="hospital@email.com"
-                  />
-                  {form.formState.errors.email && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.email.message}
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <Label htmlFor="licenseNumber">License Number *</Label>
-                  <Input
-                    id="licenseNumber"
-                    {...form.register("licenseNumber")}
-                    placeholder="Enter license number"
-                  />
-                  {form.formState.errors.licenseNumber && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.licenseNumber.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* OPD Department Selection */}
-                <div className="md:col-span-2">
-                  <Label>OPD Departments *</Label>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-600 mb-3">Select the OPD departments your hospital offers:</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {OPD_DEPARTMENTS.map((dept) => (
-                          <div key={dept} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={dept}
-                              checked={selectedDepartments.includes(dept)}
-                              onChange={() => toggleDepartment(dept)}
-                              className="rounded border-gray-300"
+                  <div className="md:col-span-2">
+                    <Label>Specializations Offered *</Label>
+                    <div className="mt-2 space-y-2">
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded">
+                        {SPECIALIZATIONS.map((spec) => (
+                          <div key={spec} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={spec}
+                              checked={selectedSpecializations.includes(spec)}
+                              onCheckedChange={() => toggleSpecialization(spec)}
                             />
-                            <Label htmlFor={dept} className="text-sm font-normal cursor-pointer">
-                              {dept}
-                            </Label>
+                            <Label htmlFor={spec} className="text-sm cursor-pointer">{spec}</Label>
                           </div>
                         ))}
                       </div>
-
-                      {/* Hospital Image Upload */}
-                      <div className="space-y-3">
-                        <Label>Hospital Image</Label>
-                        <div className="flex items-center space-x-4">
-                          <Button 
-                            type="button" 
-                            variant="outline"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center space-x-2"
-                          >
-                            <Camera className="h-4 w-4" />
-                            <span>Upload Image</span>
-                          </Button>
-                          {hospitalImage && (
-                            <div className="relative">
-                              <img 
-                                src={hospitalImage} 
-                                alt="Hospital preview" 
-                                className="w-16 h-16 object-cover rounded-lg border"
-                              />
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                                onClick={() => {
-                                  setHospitalImage(null);
-                                  form.setValue("hospitalImage", "");
-                                }}
-                              >
-                                ×
-                              </Button>
-                            </div>
-                          )}
+                      {selectedSpecializations.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {selectedSpecializations.map((spec) => (
+                            <Badge key={spec} variant="secondary" className="text-xs">
+                              {spec}
+                              <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => removeSpecialization(spec)} />
+                            </Badge>
+                          ))}
                         </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Address & Contact Details */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">2. Address & Contact Details</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="addressLine1">Address Line 1 *</Label>
+                    <Input
+                      id="addressLine1"
+                      {...form.register("addressLine1")}
+                      placeholder="Building, Street"
+                    />
+                    {form.formState.errors.addressLine1 && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.addressLine1.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="addressLine2">Address Line 2 (Optional)</Label>
+                    <Input
+                      id="addressLine2"
+                      {...form.register("addressLine2")}
+                      placeholder="Area, Landmark"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      {...form.register("city")}
+                      placeholder="Enter city"
+                    />
+                    {form.formState.errors.city && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.city.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="state">State *</Label>
+                    <Input
+                      id="state"
+                      {...form.register("state")}
+                      placeholder="Enter state"
+                    />
+                    {form.formState.errors.state && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.state.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="pinCode">PIN Code *</Label>
+                    <Input
+                      id="pinCode"
+                      {...form.register("pinCode")}
+                      placeholder="Enter PIN code"
+                    />
+                    {form.formState.errors.pinCode && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.pinCode.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="contactNumber">Contact Number *</Label>
+                    <Input
+                      id="contactNumber"
+                      {...form.register("contactNumber")}
+                      placeholder="+91 9999999999"
+                    />
+                    {form.formState.errors.contactNumber && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.contactNumber.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">Email Address *</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      {...form.register("email")}
+                      placeholder="hospital@email.com"
+                    />
+                    {form.formState.errors.email && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.email.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="website">Website (Optional)</Label>
+                    <Input
+                      id="website"
+                      {...form.register("website")}
+                      placeholder="https://www.hospital.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Administrator or Owner Details */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <Users className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">3. Administrator or Owner Details</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="adminFullName">Admin Full Name *</Label>
+                    <Input
+                      id="adminFullName"
+                      {...form.register("adminFullName")}
+                      placeholder="Enter admin full name"
+                    />
+                    {form.formState.errors.adminFullName && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.adminFullName.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="adminDesignation">Designation *</Label>
+                    <Input
+                      id="adminDesignation"
+                      {...form.register("adminDesignation")}
+                      placeholder="e.g., Owner, Director, Admin"
+                    />
+                    {form.formState.errors.adminDesignation && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.adminDesignation.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="adminMobileNumber">Mobile Number *</Label>
+                    <Input
+                      id="adminMobileNumber"
+                      {...form.register("adminMobileNumber")}
+                      placeholder="+91 9999999999"
+                    />
+                    {form.formState.errors.adminMobileNumber && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.adminMobileNumber.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="adminEmailId">Email ID *</Label>
+                    <Input
+                      id="adminEmailId"
+                      type="email"
+                      {...form.register("adminEmailId")}
+                      placeholder="admin@hospital.com"
+                    />
+                    {form.formState.errors.adminEmailId && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.adminEmailId.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Licensing & Accreditation */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <Shield className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">4. Licensing & Accreditation</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="licenseNumber">Hospital License Number / Certificate No. *</Label>
+                    <Input
+                      id="licenseNumber"
+                      {...form.register("licenseNumber")}
+                      placeholder="Enter license number"
+                    />
+                    {form.formState.errors.licenseNumber && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.licenseNumber.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="issuingAuthority">Issuing Authority *</Label>
+                    <Input
+                      id="issuingAuthority"
+                      {...form.register("issuingAuthority")}
+                      placeholder="Enter issuing authority"
+                    />
+                    {form.formState.errors.issuingAuthority && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.issuingAuthority.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="licenseValidityDate">License Validity Date *</Label>
+                    <Input
+                      id="licenseValidityDate"
+                      type="date"
+                      {...form.register("licenseValidityDate")}
+                    />
+                    {form.formState.errors.licenseValidityDate && (
+                      <p className="text-sm text-destructive mt-1">
+                        {form.formState.errors.licenseValidityDate.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="gstNumber">GST Number (Optional)</Label>
+                    <Input
+                      id="gstNumber"
+                      {...form.register("gstNumber")}
+                      placeholder="Enter GST number"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="nabhAccreditation"
+                      checked={form.watch("nabhAccreditation")}
+                      onCheckedChange={(checked) => form.setValue("nabhAccreditation", checked as boolean)}
+                    />
+                    <Label htmlFor="nabhAccreditation">NABH Accreditation</Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Facilities / Infrastructure */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <Bed className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">5. Facilities / Infrastructure</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="totalBeds">Total Beds</Label>
+                    <Input
+                      id="totalBeds"
+                      type="number"
+                      {...form.register("totalBeds", { valueAsNumber: true })}
+                      placeholder="Enter total beds"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="icuBeds">ICU Beds</Label>
+                    <Input
+                      id="icuBeds"
+                      type="number"
+                      {...form.register("icuBeds", { valueAsNumber: true })}
+                      placeholder="Enter ICU beds"
+                    />
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="emergencyServices"
+                      checked={form.watch("emergencyServices")}
+                      onCheckedChange={(checked) => form.setValue("emergencyServices", checked as boolean)}
+                    />
+                    <Label htmlFor="emergencyServices">Emergency Services Available</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="pharmacyInside"
+                      checked={form.watch("pharmacyInside")}
+                      onCheckedChange={(checked) => form.setValue("pharmacyInside", checked as boolean)}
+                    />
+                    <Label htmlFor="pharmacyInside">Pharmacy Inside</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="ambulanceService"
+                      checked={form.watch("ambulanceService")}
+                      onCheckedChange={(checked) => form.setValue("ambulanceService", checked as boolean)}
+                    />
+                    <Label htmlFor="ambulanceService">Ambulance Service</Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 6: Login & Access Setup */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <Users className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">6. Login & Access Setup</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="username">Username / Hospital Code</Label>
+                    <Input
+                      id="username"
+                      {...form.register("username")}
+                      placeholder="Auto-generated or manual"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      {...form.register("password")}
+                      placeholder="Enter password"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="userRole">User Role</Label>
+                    <Input
+                      id="userRole"
+                      {...form.register("userRole")}
+                      value="Hospital Admin"
+                      disabled
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 7: Document Upload */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <Upload className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">7. Optional Documents Upload</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  {/* Hospital Logo Upload */}
+                  <div className="md:col-span-2">
+                    <Label>Hospital Logo (for dashboard and reports)</Label>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center space-x-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex items-center space-x-2"
+                        >
+                          <Camera className="h-4 w-4" />
+                          <span>Upload Logo</span>
+                        </Button>
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -366,118 +721,127 @@ export default function HospitalRegistration() {
                           accept="image/*"
                           className="hidden"
                         />
-                        <p className="text-sm text-gray-500">Upload an image of the hospital (Max 5MB)</p>
+                        {hospitalImage && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setHospitalImage(null);
+                              form.setValue("hospitalImage", "");
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-
-                      {/* Additional Information */}
-                      <div className="space-y-4">
-                        <h4 className="font-medium text-gray-900">Additional Information</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="establishedYear">Established Year</Label>
-                            <Input
-                              id="establishedYear"
-                              type="number"
-                              {...form.register("establishedYear", { 
-                                valueAsNumber: true,
-                                setValueAs: (v) => v === "" ? undefined : Number(v)
-                              })}
-                              placeholder="e.g., 2020"
-                            />
-                          </div>
-
-                          <div>
-                            <Label htmlFor="totalBeds">Total Beds</Label>
-                            <Input
-                              id="totalBeds"
-                              type="number"
-                              {...form.register("totalBeds", { 
-                                valueAsNumber: true,
-                                setValueAs: (v) => v === "" ? undefined : Number(v)
-                              })}
-                              placeholder="e.g., 100"
-                            />
-                          </div>
-
-                          <div>
-                            <Label htmlFor="website">Website</Label>
-                            <Input
-                              id="website"
-                              {...form.register("website")}
-                              placeholder="https://www.hospital.com"
-                            />
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="emergencyServices"
-                              checked={form.watch("emergencyServices")}
-                              onCheckedChange={(checked) => form.setValue("emergencyServices", checked)}
-                            />
-                            <Label htmlFor="emergencyServices">24/7 Emergency Services</Label>
-                          </div>
-                        </div>
-
-                        <div>
-                          <Label htmlFor="description">Description</Label>
-                          <Textarea
-                            id="description"
-                            {...form.register("description")}
-                            placeholder="Brief description about the hospital"
-                            rows={3}
+                      {hospitalImage && (
+                        <div className="w-32 h-32 border rounded overflow-hidden">
+                          <img
+                            src={hospitalImage}
+                            alt="Hospital preview"
+                            className="w-full h-full object-cover"
                           />
                         </div>
-                      </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Hospital Registration Certificate</Label>
+                    <div className="mt-2">
+                      <Button type="button" variant="outline" size="sm">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Upload PDF/Image
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>License Document</Label>
+                    <div className="mt-2">
+                      <Button type="button" variant="outline" size="sm">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Upload PDF/Image
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>GST Certificate</Label>
+                    <div className="mt-2">
+                      <Button type="button" variant="outline" size="sm">
+                        <FileText className="h-4 w-4 mr-2" />
+                        Upload PDF/Image
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* OPD Department Selection Section */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 pb-2 border-b">
+                  <Building2 className="h-5 w-5 text-primary" />
+                  <h3 className="text-lg font-semibold">OPD Departments</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Select OPD Departments *</Label>
+                    <p className="text-sm text-gray-600 mb-3">Choose the OPD departments your hospital offers:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {OPD_DEPARTMENTS.map((dept) => (
+                        <div key={dept} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={dept}
+                            checked={selectedDepartments.includes(dept)}
+                            onCheckedChange={() => toggleDepartment(dept)}
+                          />
+                          <Label htmlFor={dept} className="text-sm cursor-pointer">
+                            {dept}
+                          </Label>
+                        </div>
+                      ))}
                     </div>
 
                     {/* Custom Department Input */}
-                    <div>
-                      <p className="text-sm text-gray-600 mb-2">Or add a custom department:</p>
-                      <div className="flex space-x-2">
-                        <Input
-                          value={customDepartment}
-                          onChange={(e) => setCustomDepartment(e.target.value)}
-                          placeholder="Enter custom department name"
-                          className="flex-1"
-                        />
-                        <Button type="button" onClick={addCustomDepartment} variant="outline" size="sm">
-                          Add
-                        </Button>
-                      </div>
+                    <div className="mt-4 flex items-center space-x-2">
+                      <Input
+                        value={customDepartment}
+                        onChange={(e) => setCustomDepartment(e.target.value)}
+                        placeholder="Add custom department"
+                        className="flex-1"
+                      />
+                      <Button type="button" onClick={addCustomDepartment} size="sm">
+                        Add
+                      </Button>
                     </div>
 
-                    {/* Selected Departments */}
+                    {/* Selected Departments Display */}
                     {selectedDepartments.length > 0 && (
-                      <div>
-                        <p className="text-sm font-medium text-gray-700 mb-2">Selected Departments:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedDepartments.map((dept) => (
-                            <span
-                              key={dept}
-                              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {dept}
-                              <button
-                                type="button"
-                                onClick={() => removeDepartment(dept)}
-                                className="ml-2 text-blue-600 hover:text-blue-800"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ))}
-                        </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {selectedDepartments.map((dept) => (
+                          <Badge key={dept} variant="secondary" className="text-xs">
+                            {dept}
+                            <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => removeDepartment(dept)} />
+                          </Badge>
+                        ))}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
+              {/* Form Buttons */}
               <div className="flex items-center justify-end space-x-4 pt-6 border-t">
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createHospitalMutation.isPending}>
+                <Button 
+                  type="submit" 
+                  disabled={createHospitalMutation.isPending}
+                  className="min-w-32"
+                >
                   {createHospitalMutation.isPending ? "Registering..." : "Register Hospital"}
                 </Button>
               </div>
@@ -486,261 +850,217 @@ export default function HospitalRegistration() {
         </Card>
       )}
 
+      {/* Hospital Listing Section with Search */}
       <Card>
         <CardHeader>
-          <CardTitle>Registered Hospitals</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center space-x-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              <span>Registered Hospitals</span>
+            </CardTitle>
+            
+            {/* Search Filter */}
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <Input
+                  placeholder="Search hospitals..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 w-64"
+                />
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p>Loading hospitals...</p>
-          ) : hospitals?.length === 0 ? (
-            <p className="text-gray-500">No hospitals registered yet.</p>
+            <div className="text-center py-8">Loading hospitals...</div>
           ) : (
-            <div className="overflow-x-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {hospitals?.map((hospital) => (
-                  <Card key={hospital._id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          {hospital.hospitalImage ? (
-                            <img 
-                              src={hospital.hospitalImage} 
-                              alt={hospital.name}
-                              className="w-12 h-12 object-cover rounded-lg border"
-                            />
-                          ) : (
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                              <Building2 className="h-6 w-6 text-gray-400" />
-                            </div>
-                          )}
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{hospital.name}</h3>
-                            <div className="flex items-center space-x-2 text-sm text-gray-500">
-                              {hospital.hospitalId && <Badge variant="outline">{hospital.hospitalId}</Badge>}
-                              {hospital.hospitalCode && <Badge variant="secondary">{hospital.hospitalCode}</Badge>}
-                            </div>
-                          </div>
+            <div className="space-y-4">
+              {hospitals?.filter(hospital => 
+                hospital.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                hospital.hospitalType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                hospital.addressLine1.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map((hospital) => (
+                <div key={hospital._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <h3 className="text-lg font-semibold">{hospital.name}</h3>
+                        <Badge variant="outline">{hospital.hospitalType}</Badge>
+                        {hospital.nabhAccreditation && (
+                          <Badge variant="secondary">NABH Accredited</Badge>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                        <div className="flex items-center space-x-1">
+                          <MapPin className="h-4 w-4" />
+                          <span>{hospital.addressLine1}, {hospital.city}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                onClick={() => setViewingHospital(hospital)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle>Hospital Details</DialogTitle>
-                              </DialogHeader>
-                              {viewingHospital && (
-                                <div className="space-y-6">
-                                  <div className="flex items-center space-x-4">
-                                    {viewingHospital.hospitalImage ? (
-                                      <img 
-                                        src={viewingHospital.hospitalImage} 
-                                        alt={viewingHospital.name}
-                                        className="w-24 h-24 object-cover rounded-lg border"
-                                      />
-                                    ) : (
-                                      <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center">
-                                        <Building2 className="h-12 w-12 text-gray-400" />
-                                      </div>
-                                    )}
-                                    <div>
-                                      <h3 className="text-xl font-bold">{viewingHospital.name}</h3>
-                                      <p className="text-gray-600">{viewingHospital.hospitalType}</p>
-                                      <div className="flex items-center space-x-2 mt-2">
-                                        <Badge>{viewingHospital.hospitalId}</Badge>
-                                        <Badge variant="secondary">{viewingHospital.hospitalCode}</Badge>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-3">
-                                      <div className="flex items-center space-x-2">
-                                        <MapPin className="h-4 w-4 text-gray-400" />
-                                        <span className="text-sm">{viewingHospital.address}</span>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <Phone className="h-4 w-4 text-gray-400" />
-                                        <span className="text-sm">{viewingHospital.contactNumber}</span>
-                                      </div>
-                                      <div className="flex items-center space-x-2">
-                                        <Mail className="h-4 w-4 text-gray-400" />
-                                        <span className="text-sm">{viewingHospital.email}</span>
-                                      </div>
-                                      {viewingHospital.website && (
-                                        <div className="flex items-center space-x-2">
-                                          <Globe className="h-4 w-4 text-gray-400" />
-                                          <a href={viewingHospital.website} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
-                                            {viewingHospital.website}
-                                          </a>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <div className="space-y-3">
-                                      {viewingHospital.establishedYear && (
-                                        <div className="flex items-center space-x-2">
-                                          <Calendar className="h-4 w-4 text-gray-400" />
-                                          <span className="text-sm">Est. {viewingHospital.establishedYear}</span>
-                                        </div>
-                                      )}
-                                      {viewingHospital.totalBeds && (
-                                        <div className="text-sm">
-                                          <span className="font-medium">Beds:</span> {viewingHospital.totalBeds}
-                                        </div>
-                                      )}
-                                      <div className="text-sm">
-                                        <span className="font-medium">License:</span> {viewingHospital.licenseNumber}
-                                      </div>
-                                      {viewingHospital.emergencyServices && (
-                                        <Badge className="bg-red-100 text-red-800">24/7 Emergency</Badge>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {viewingHospital.description && (
-                                    <div>
-                                      <h4 className="font-medium mb-2">Description</h4>
-                                      <p className="text-sm text-gray-600">{viewingHospital.description}</p>
-                                    </div>
-                                  )}
-
-                                  <div>
-                                    <h4 className="font-medium mb-2">OPD Departments</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {viewingHospital.opdDepartments?.map((dept, index) => (
-                                        <Badge key={index} variant="outline">{dept}</Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </DialogContent>
-                          </Dialog>
-
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            onClick={() => setEditingHospital(hospital)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => {
-                              if (window.confirm('Are you sure you want to delete this hospital?')) {
-                                deleteHospitalMutation.mutate(hospital._id!);
-                              }
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Phone className="h-4 w-4" />
+                          <span>{hospital.contactNumber}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          <Mail className="h-4 w-4" />
+                          <span>{hospital.email}</span>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <p className="text-sm text-gray-600 flex items-center">
-                          <span className="font-medium">{hospital.hospitalType}</span>
-                          {hospital.emergencyServices && (
-                            <Badge className="ml-2 bg-red-100 text-red-800 text-xs">Emergency</Badge>
-                          )}
-                        </p>
-                        <div className="flex items-center space-x-2 text-sm text-gray-500">
-                          <Phone className="h-3 w-3" />
-                          <span>{hospital.contactNumber}</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-500">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate">{hospital.email}</span>
-                        </div>
-
-                        <div className="mt-3">
-                          <p className="text-xs text-gray-500 mb-1">OPD Departments:</p>
+                      {hospital.specializations && hospital.specializations.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium mb-1">Specializations:</p>
                           <div className="flex flex-wrap gap-1">
-                            {hospital.opdDepartments?.slice(0, 3).map((dept, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">{dept}</Badge>
+                            {hospital.specializations.slice(0, 5).map((spec) => (
+                              <Badge key={spec} variant="outline" className="text-xs">
+                                {spec}
+                              </Badge>
                             ))}
-                            {(hospital.opdDepartments?.length || 0) > 3 && (
-                              <Badge variant="outline" className="text-xs">+{(hospital.opdDepartments?.length || 0) - 3} more</Badge>
+                            {hospital.specializations.length > 5 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{hospital.specializations.length - 5} more
+                              </Badge>
                             )}
                           </div>
                         </div>
+                      )}
 
-                        <p className="text-xs text-gray-400 mt-2">
-                          Created: {new Date(hospital.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      {hospital.opdDepartments && hospital.opdDepartments.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm font-medium mb-1">OPD Departments:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {hospital.opdDepartments.map((dept, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {dept}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-2 ml-4">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => setViewingHospital(hospital)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>{viewingHospital?.name} - Details</DialogTitle>
+                          </DialogHeader>
+                          {viewingHospital && (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <Label className="font-medium">Hospital Type:</Label>
+                                  <p>{viewingHospital.hospitalType}</p>
+                                </div>
+                                <div>
+                                  <Label className="font-medium">Registration Number:</Label>
+                                  <p>{viewingHospital.registrationNumber}</p>
+                                </div>
+                                <div>
+                                  <Label className="font-medium">License Number:</Label>
+                                  <p>{viewingHospital.licenseNumber}</p>
+                                </div>
+                                <div>
+                                  <Label className="font-medium">Admin:</Label>
+                                  <p>{viewingHospital.adminFullName} ({viewingHospital.adminDesignation})</p>
+                                </div>
+                                <div>
+                                  <Label className="font-medium">Total Beds:</Label>
+                                  <p>{viewingHospital.totalBeds || "Not specified"}</p>
+                                </div>
+                                <div>
+                                  <Label className="font-medium">ICU Beds:</Label>
+                                  <p>{viewingHospital.icuBeds || "Not specified"}</p>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <Label className="font-medium">Address:</Label>
+                                  <p>{viewingHospital.addressLine1}, {viewingHospital.addressLine2 && viewingHospital.addressLine2 + ", "}{viewingHospital.city}, {viewingHospital.state} - {viewingHospital.pinCode}</p>
+                                </div>
+                                <div>
+                                  <Label className="font-medium">Emergency Services:</Label>
+                                  <p>{viewingHospital.emergencyServices ? "Available" : "Not Available"}</p>
+                                </div>
+                                <div>
+                                  <Label className="font-medium">Pharmacy:</Label>
+                                  <p>{viewingHospital.pharmacyInside ? "Available" : "Not Available"}</p>
+                                </div>
+                              </div>
+
+                              {viewingHospital.opdDepartments && (
+                                <div>
+                                  <Label className="font-medium">OPD Departments:</Label>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {viewingHospital.opdDepartments.map((dept, index) => (
+                                      <Badge key={index} variant="secondary" className="text-xs">
+                                        {dept}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
+
+                      <Button variant="outline" size="sm" onClick={() => setEditingHospital(hospital)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Delete Hospital</DialogTitle>
+                          </DialogHeader>
+                          <p>Are you sure you want to delete {hospital.name}? This action cannot be undone.</p>
+                          <div className="flex justify-end space-x-2 mt-4">
+                            <Button variant="outline">Cancel</Button>
+                            <Button variant="destructive" onClick={() => deleteHospitalMutation.mutate(hospital._id!)}>
+                              Delete
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+
+                  {/* Quick Add OPD Button */}
+                  <div className="mt-3 pt-3 border-t">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-gray-600">
+                        OPD Departments: {hospital.opdDepartments?.length || 0}
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          // Navigate to OPD management with this hospital pre-selected
+                          window.location.href = `/opds?hospital=${hospital._id}`;
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add OPD
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Edit Hospital Dialog */}
-      {editingHospital && (
-        <Dialog open={!!editingHospital} onOpenChange={() => setEditingHospital(null)}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Hospital</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={editForm.handleSubmit((data) => {
-              updateHospitalMutation.mutate({ 
-                id: editingHospital._id!, 
-                data: { ...data, opdDepartments: selectedDepartments } 
-              });
-            })} className="space-y-6">
-              {/* Similar form fields as creation but with pre-filled values */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-name">Hospital Name *</Label>
-                  <Input
-                    id="edit-name"
-                    {...editForm.register("name")}
-                    defaultValue={editingHospital.name}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-type">Hospital Type *</Label>
-                  <Select onValueChange={(value) => editForm.setValue("hospitalType", value)} defaultValue={editingHospital.hospitalType}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="General">General</SelectItem>
-                      <SelectItem value="Multispecialty">Multispecialty</SelectItem>
-                      <SelectItem value="Specialized">Specialized</SelectItem>
-                      <SelectItem value="Teaching">Teaching Hospital</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* Add more fields as needed */}
-              </div>
-              <div className="flex justify-end space-x-4">
-                <Button type="button" variant="outline" onClick={() => setEditingHospital(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={updateHospitalMutation.isPending}>
-                  {updateHospitalMutation.isPending ? "Updating..." : "Update Hospital"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }
