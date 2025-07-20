@@ -59,7 +59,7 @@ export default function PatientRegistration() {
       pastDiseases: "",
       familyHistory: "",
       visitType: "",
-      doctorId: 0,
+      doctorId: "",
       appointmentDate: new Date(),
       symptoms: "",
       emergencyContactName: "",
@@ -437,7 +437,7 @@ export default function PatientRegistration() {
                       </SelectTrigger>
                       <SelectContent>
                         {doctors?.map((doctor) => (
-                          <SelectItem key={doctor.id} value={doctor.id.toString()}>
+                          <SelectItem key={doctor._id} value={doctor._id!}>
                             {doctor.name} - {doctor.specialization}
                           </SelectItem>
                         ))}
@@ -620,7 +620,7 @@ export default function PatientRegistration() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {patients?.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-gray-50">
+                    <tr key={patient._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {patient.patientId}
                       </td>

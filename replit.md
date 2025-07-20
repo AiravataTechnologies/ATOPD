@@ -2,7 +2,18 @@
 
 ## Overview
 
-This is a full-stack OPD (Outpatient Department) management system designed for hospitals and clinics, optimized for tablet use. The application provides a comprehensive solution for managing hospital registration, OPD departments, doctors, and patients through a modern web interface.
+This is a full-stack OPD (Outpatient Department) management system designed for hospitals and clinics, optimized for tablet use. The application provides a comprehensive solution for managing hospital registration, OPD departments, doctors, and patients through a modern web interface. The system is now fully integrated with the user's MongoDB database and displays real-time data from the database.
+
+## Recent Changes (January 2025)
+- ✓ **Database Migration**: Successfully converted entire system from PostgreSQL to MongoDB
+- ✓ **Database Integration**: Connected to user's specific MongoDB URI (mongodb+srv://airavatatechnologiesprojects:JayShreeRam@27@atopd.436ykvh.mongodb.net)  
+- ✓ **ObjectId Handling**: Fixed all frontend-backend serialization issues for MongoDB ObjectIds
+- ✓ **Real Data Display**: Updated dashboard to show actual counts from database instead of dummy data
+- ✓ **API Functionality**: All REST endpoints working correctly with MongoDB storage
+- ✓ **Type Safety**: Fixed all ID reference issues across frontend components (_id vs id)
+
+## Current Status
+The system is fully operational with MongoDB integration. Hospital "AIRAVATA TECHNOLOGIES" has been successfully registered as test data. All forms and data tables properly handle MongoDB document structure.
 
 ## User Preferences
 
@@ -24,10 +35,10 @@ The application follows a modern full-stack architecture with clear separation b
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js REST API
 - **Language**: TypeScript with ES modules
-- **Database**: PostgreSQL with Neon serverless
-- **ORM**: Drizzle ORM for type-safe database operations
+- **Database**: MongoDB with native MongoDB driver
+- **Data Layer**: Custom storage abstraction with type-safe operations
 - **Validation**: Zod schemas shared between client and server
-- **Session Management**: Express sessions with PostgreSQL store
+- **Document Handling**: Proper ObjectId serialization between frontend/backend
 
 ### Project Structure
 ```
@@ -40,12 +51,13 @@ The application follows a modern full-stack architecture with clear separation b
 
 ## Key Components
 
-### Database Schema (PostgreSQL)
-- **Hospitals**: Core hospital registration with licensing and contact info
-- **OPDs**: Department management linked to hospitals
-- **Doctors**: Medical staff registration under specific OPDs
-- **Patients**: Patient records with medical history and doctor assignments
-- **Users**: Authentication and authorization system
+### Database Schema (MongoDB)
+- **hospitals**: Core hospital registration with licensing and contact info
+- **opds**: Department management linked to hospitals via hospitalId
+- **doctors**: Medical staff registration under specific OPDs via opdId  
+- **patients**: Patient records with medical history and doctor assignments
+- **users**: Authentication and authorization system
+- All collections use MongoDB ObjectIds with proper string serialization for frontend
 
 ### API Endpoints
 - `POST /api/hospitals/register` - Hospital registration

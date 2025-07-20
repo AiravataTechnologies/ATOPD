@@ -26,7 +26,7 @@ const daysOfWeek = [
 export default function OPDManagement() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
-  const [selectedHospitalId, setSelectedHospitalId] = useState<number | null>(null);
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
 
   const form = useForm<Omit<InsertOpd, "hospitalId" | "operationDays">>({
@@ -127,13 +127,13 @@ export default function OPDManagement() {
             <CardTitle>Select Hospital</CardTitle>
           </CardHeader>
           <CardContent>
-            <Select onValueChange={(value) => setSelectedHospitalId(parseInt(value))}>
+            <Select onValueChange={(value) => setSelectedHospitalId(value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a hospital" />
               </SelectTrigger>
               <SelectContent>
                 {hospitals?.map((hospital) => (
-                  <SelectItem key={hospital.id} value={hospital.id.toString()}>
+                  <SelectItem key={hospital._id} value={hospital._id!}>
                     {hospital.name}
                   </SelectItem>
                 ))}
