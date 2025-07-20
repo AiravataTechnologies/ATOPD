@@ -15,6 +15,8 @@ export type InsertUser = {
 
 export type Hospital = {
   _id?: string;
+  hospitalId: string;
+  hospitalCode: string;
   name: string;
   address: string;
   contactNumber: string;
@@ -22,7 +24,14 @@ export type Hospital = {
   licenseNumber: string;
   hospitalType: string;
   opdDepartments: string[];
+  hospitalImage?: string;
+  description?: string;
+  website?: string;
+  establishedYear?: number;
+  totalBeds?: number;
+  emergencyServices: boolean;
   createdAt: Date;
+  updatedAt: Date;
 };
 
 export type InsertHospital = {
@@ -33,6 +42,29 @@ export type InsertHospital = {
   licenseNumber: string;
   hospitalType: string;
   opdDepartments: string[];
+  hospitalImage?: string;
+  description?: string;
+  website?: string;
+  establishedYear?: number;
+  totalBeds?: number;
+  emergencyServices?: boolean;
+};
+
+export type UpdateHospital = {
+  name: string;
+  address: string;
+  contactNumber: string;
+  email: string;
+  licenseNumber: string;
+  hospitalType: string;
+  opdDepartments: string[];
+  hospitalImage?: string;
+  description?: string;
+  website?: string;
+  establishedYear?: number;
+  totalBeds?: number;
+  emergencyServices: boolean;
+  updatedAt: Date;
 };
 
 export type OPD = {
@@ -154,7 +186,12 @@ export interface IStorage {
   // Hospital methods
   createHospital(hospital: InsertHospital): Promise<Hospital>;
   getHospital(id: string): Promise<Hospital | undefined>;
+  updateHospital(id: string, hospital: UpdateHospital): Promise<Hospital | undefined>;
+  deleteHospital(id: string): Promise<boolean>;
   getAllHospitals(): Promise<Hospital[]>;
+  getHospitalByCode(code: string): Promise<Hospital | undefined>;
+  generateHospitalId(): Promise<string>;
+  generateHospitalCode(name: string, state: string): Promise<string>;
 
   // OPD methods
   createOPD(opd: InsertOPD): Promise<OPD>;
@@ -212,15 +249,72 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Hospital methods
+  async generateHospitalId(): Promise<string> {
+    const db = await this.getDb();
+    const count = await db.collection("hospitals").countDocuments();
+    return `HOS${(count + 1).toString().padStart(4, '0')}`;
+  }
+
+  async generateHospitalCode(name: string, state: string): Promise<string> {
+    const db = await this.getDb();
+    // Generate unique code based on hospital name initials and state
+    const nameInitials = name.split(' ').map(word => word.charAt(0)).join('').toUpperCase();
+    const stateInitials = state.split(' ').map(word => word.charAt(0)).join('').toUpperCase();
+    
+    let counter = 1;
+    let code = `${nameInitials}_${stateInitials}_${counter.toString().padStart(3, '0')}`;
+    
+    // Check if code exists, increment until unique
+    while (await db.collection("hospitals").findOne({ hospitalCode: code })) {
+      counter++;
+      code = `${nameInitials}_${stateInitials}_${counter.toString().padStart(3, '0')}`;
+    }
+    
+    return code;
+  }
+
   async createHospital(hospital: InsertHospital): Promise<Hospital> {
     const db = await this.getDb();
+    const hospitalId = await this.generateHospitalId();
+    const hospitalCode = await this.generateHospitalCode(hospital.name, hospital.address.split(',').pop()?.trim() || 'XX');
+    
     const hospitalData = {
       ...hospital,
-      createdAt: new Date()
+      hospitalId,
+      hospitalCode,
+      emergencyServices: hospital.emergencyServices || false,
+      createdAt: new Date(),
+      updatedAt: new Date()
     };
     const result = await db.collection("hospitals").insertOne(hospitalData);
     const newHospital = await db.collection("hospitals").findOne({ _id: result.insertedId });
     return convertToTypedDocument<Hospital>(newHospital!);
+  }
+
+  async updateHospital(id: string, hospital: UpdateHospital): Promise<Hospital | undefined> {
+    const db = await this.getDb();
+    const updateData = {
+      ...hospital,
+      updatedAt: new Date()
+    };
+    const result = await db.collection("hospitals").findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: updateData },
+      { returnDocument: 'after' }
+    );
+    return result ? convertToTypedDocument<Hospital>(result) : undefined;
+  }
+
+  async deleteHospital(id: string): Promise<boolean> {
+    const db = await this.getDb();
+    const result = await db.collection("hospitals").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+
+  async getHospitalByCode(code: string): Promise<Hospital | undefined> {
+    const db = await this.getDb();
+    const hospital = await db.collection("hospitals").findOne({ hospitalCode: code });
+    return hospital ? convertToTypedDocument<Hospital>(hospital) : undefined;
   }
 
   async getHospital(id: string): Promise<Hospital | undefined> {

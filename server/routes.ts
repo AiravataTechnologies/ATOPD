@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertHospitalSchema, insertOpdSchema, insertDoctorSchema, insertPatientSchema } from "@shared/schema";
+import { insertHospitalSchema, updateHospitalSchema, insertOpdSchema, insertDoctorSchema, insertPatientSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -32,6 +32,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = req.params.id;
       const hospital = await storage.getHospital(id);
+      if (!hospital) {
+        return res.status(404).json({ message: "Hospital not found" });
+      }
+      res.json(hospital);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch hospital", error: (error as Error).message });
+    }
+  });
+
+  app.put("/api/hospitals/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const hospitalData = updateHospitalSchema.parse(req.body);
+      const hospital = await storage.updateHospital(id, hospitalData);
+      if (!hospital) {
+        return res.status(404).json({ message: "Hospital not found" });
+      }
+      res.json(hospital);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update hospital", error: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/hospitals/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const success = await storage.deleteHospital(id);
+      if (!success) {
+        return res.status(404).json({ message: "Hospital not found" });
+      }
+      res.json({ message: "Hospital deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete hospital", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/hospitals/code/:code", async (req, res) => {
+    try {
+      const code = req.params.code;
+      const hospital = await storage.getHospitalByCode(code);
       if (!hospital) {
         return res.status(404).json({ message: "Hospital not found" });
       }

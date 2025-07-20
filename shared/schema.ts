@@ -5,6 +5,8 @@ import { z } from "zod";
 // Hospital schema
 export const hospitalSchema = z.object({
   _id: z.string().optional(),
+  hospitalId: z.string(), // Unique hospital ID (e.g., HOS0001)
+  hospitalCode: z.string(), // Unique hospital code (e.g., AT_MH_001)
   name: z.string(),
   address: z.string(),
   contactNumber: z.string(),
@@ -12,7 +14,14 @@ export const hospitalSchema = z.object({
   licenseNumber: z.string(),
   hospitalType: z.string(),
   opdDepartments: z.array(z.string()).default([]), // Changed from numberOfOpdDepartments
+  hospitalImage: z.string().optional(), // Base64 image or URL
+  description: z.string().optional(),
+  website: z.string().optional(),
+  establishedYear: z.number().optional(),
+  totalBeds: z.number().optional(),
+  emergencyServices: z.boolean().default(false),
   createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().default(() => new Date()),
 });
 
 // Predefined OPD department types
@@ -102,7 +111,19 @@ export const userSchema = z.object({
 // Insert schemas (omitting _id and auto-generated fields)
 export const insertHospitalSchema = hospitalSchema.omit({
   _id: true,
+  hospitalId: true,
+  hospitalCode: true,
   createdAt: true,
+  updatedAt: true,
+});
+
+export const updateHospitalSchema = hospitalSchema.omit({
+  _id: true,
+  hospitalId: true,
+  hospitalCode: true,
+  createdAt: true,
+}).extend({
+  updatedAt: z.date().default(() => new Date()),
 });
 
 export const insertOpdSchema = opdSchema.omit({
@@ -133,6 +154,7 @@ export const insertUserSchema = userSchema.omit({
 // Types
 export type Hospital = z.infer<typeof hospitalSchema>;
 export type InsertHospital = z.infer<typeof insertHospitalSchema>;
+export type UpdateHospital = z.infer<typeof updateHospitalSchema>;
 
 export type Opd = z.infer<typeof opdSchema>;
 export type InsertOpd = z.infer<typeof insertOpdSchema>;

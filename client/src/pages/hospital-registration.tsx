@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -8,16 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { insertHospitalSchema, type InsertHospital, type Hospital, OPD_DEPARTMENTS } from "@shared/schema";
+import { insertHospitalSchema, updateHospitalSchema, type InsertHospital, type UpdateHospital, type Hospital, OPD_DEPARTMENTS } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, Camera, Eye, Edit, Trash2, MapPin, Phone, Mail, Globe, Calendar } from "lucide-react";
 
 export default function HospitalRegistration() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const [customDepartment, setCustomDepartment] = useState("");
+  const [hospitalImage, setHospitalImage] = useState<string | null>(null);
+  const [editingHospital, setEditingHospital] = useState<Hospital | null>(null);
+  const [viewingHospital, setViewingHospital] = useState<Hospital | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<InsertHospital>({
     resolver: zodResolver(insertHospitalSchema),
@@ -29,7 +36,17 @@ export default function HospitalRegistration() {
       licenseNumber: "",
       hospitalType: "",
       opdDepartments: [],
+      hospitalImage: "",
+      description: "",
+      website: "",
+      establishedYear: undefined,
+      totalBeds: undefined,
+      emergencyServices: false,
     },
+  });
+
+  const editForm = useForm<UpdateHospital>({
+    resolver: zodResolver(updateHospitalSchema),
   });
 
   const { data: hospitals, isLoading } = useQuery<Hospital[]>({
@@ -50,7 +67,76 @@ export default function HospitalRegistration() {
       form.reset();
       setSelectedDepartments([]);
       setCustomDepartment("");
+      setHospitalImage(null);
       setShowForm(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle image upload
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: "Error",
+          description: "Image size must be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setHospitalImage(result);
+        form.setValue("hospitalImage", result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Update hospital mutation
+  const updateHospitalMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateHospital }) => {
+      const response = await apiRequest("PUT", `/api/hospitals/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
+      toast({
+        title: "Success",
+        description: "Hospital updated successfully",
+      });
+      setEditingHospital(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete hospital mutation
+  const deleteHospitalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/hospitals/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
+      toast({
+        title: "Success",
+        description: "Hospital deleted successfully",
+      });
     },
     onError: (error) => {
       toast({
@@ -73,6 +159,7 @@ export default function HospitalRegistration() {
 
     const hospitalData: InsertHospital = {
       ...data,
+      hospitalImage: hospitalImage || "",
       opdDepartments: selectedDepartments,
     };
 
@@ -236,6 +323,111 @@ export default function HospitalRegistration() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Hospital Image Upload */}
+                      <div className="space-y-3">
+                        <Label>Hospital Image</Label>
+                        <div className="flex items-center space-x-4">
+                          <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex items-center space-x-2"
+                          >
+                            <Camera className="h-4 w-4" />
+                            <span>Upload Image</span>
+                          </Button>
+                          {hospitalImage && (
+                            <div className="relative">
+                              <img 
+                                src={hospitalImage} 
+                                alt="Hospital preview" 
+                                className="w-16 h-16 object-cover rounded-lg border"
+                              />
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                                onClick={() => {
+                                  setHospitalImage(null);
+                                  form.setValue("hospitalImage", "");
+                                }}
+                              >
+                                ×
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleImageChange}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        <p className="text-sm text-gray-500">Upload an image of the hospital (Max 5MB)</p>
+                      </div>
+
+                      {/* Additional Information */}
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-gray-900">Additional Information</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="establishedYear">Established Year</Label>
+                            <Input
+                              id="establishedYear"
+                              type="number"
+                              {...form.register("establishedYear", { 
+                                valueAsNumber: true,
+                                setValueAs: (v) => v === "" ? undefined : Number(v)
+                              })}
+                              placeholder="e.g., 2020"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="totalBeds">Total Beds</Label>
+                            <Input
+                              id="totalBeds"
+                              type="number"
+                              {...form.register("totalBeds", { 
+                                valueAsNumber: true,
+                                setValueAs: (v) => v === "" ? undefined : Number(v)
+                              })}
+                              placeholder="e.g., 100"
+                            />
+                          </div>
+
+                          <div>
+                            <Label htmlFor="website">Website</Label>
+                            <Input
+                              id="website"
+                              {...form.register("website")}
+                              placeholder="https://www.hospital.com"
+                            />
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="emergencyServices"
+                              checked={form.watch("emergencyServices")}
+                              onCheckedChange={(checked) => form.setValue("emergencyServices", checked)}
+                            />
+                            <Label htmlFor="emergencyServices">24/7 Emergency Services</Label>
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label htmlFor="description">Description</Label>
+                          <Textarea
+                            id="description"
+                            {...form.register("description")}
+                            placeholder="Brief description about the hospital"
+                            rows={3}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     {/* Custom Department Input */}
@@ -305,58 +497,250 @@ export default function HospitalRegistration() {
             <p className="text-gray-500">No hospitals registered yet.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contact
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      OPDs
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {hospitals?.map((hospital) => (
-                    <tr key={hospital._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {hospital.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {hospital.hospitalType}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {hospital.contactNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div className="flex flex-wrap gap-1">
-                          {(hospital.opdDepartments || []).map((dept, index) => (
-                            <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                              {dept}
-                            </span>
-                          ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {hospitals?.map((hospital) => (
+                  <Card key={hospital._id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          {hospital.hospitalImage ? (
+                            <img 
+                              src={hospital.hospitalImage} 
+                              alt={hospital.name}
+                              className="w-12 h-12 object-cover rounded-lg border"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                              <Building2 className="h-6 w-6 text-gray-400" />
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{hospital.name}</h3>
+                            <div className="flex items-center space-x-2 text-sm text-gray-500">
+                              {hospital.hospitalId && <Badge variant="outline">{hospital.hospitalId}</Badge>}
+                              {hospital.hospitalCode && <Badge variant="secondary">{hospital.hospitalCode}</Badge>}
+                            </div>
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(hospital.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <div className="flex items-center space-x-1">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => setViewingHospital(hospital)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>Hospital Details</DialogTitle>
+                              </DialogHeader>
+                              {viewingHospital && (
+                                <div className="space-y-6">
+                                  <div className="flex items-center space-x-4">
+                                    {viewingHospital.hospitalImage ? (
+                                      <img 
+                                        src={viewingHospital.hospitalImage} 
+                                        alt={viewingHospital.name}
+                                        className="w-24 h-24 object-cover rounded-lg border"
+                                      />
+                                    ) : (
+                                      <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <Building2 className="h-12 w-12 text-gray-400" />
+                                      </div>
+                                    )}
+                                    <div>
+                                      <h3 className="text-xl font-bold">{viewingHospital.name}</h3>
+                                      <p className="text-gray-600">{viewingHospital.hospitalType}</p>
+                                      <div className="flex items-center space-x-2 mt-2">
+                                        <Badge>{viewingHospital.hospitalId}</Badge>
+                                        <Badge variant="secondary">{viewingHospital.hospitalCode}</Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-3">
+                                      <div className="flex items-center space-x-2">
+                                        <MapPin className="h-4 w-4 text-gray-400" />
+                                        <span className="text-sm">{viewingHospital.address}</span>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <Phone className="h-4 w-4 text-gray-400" />
+                                        <span className="text-sm">{viewingHospital.contactNumber}</span>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <Mail className="h-4 w-4 text-gray-400" />
+                                        <span className="text-sm">{viewingHospital.email}</span>
+                                      </div>
+                                      {viewingHospital.website && (
+                                        <div className="flex items-center space-x-2">
+                                          <Globe className="h-4 w-4 text-gray-400" />
+                                          <a href={viewingHospital.website} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">
+                                            {viewingHospital.website}
+                                          </a>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                      {viewingHospital.establishedYear && (
+                                        <div className="flex items-center space-x-2">
+                                          <Calendar className="h-4 w-4 text-gray-400" />
+                                          <span className="text-sm">Est. {viewingHospital.establishedYear}</span>
+                                        </div>
+                                      )}
+                                      {viewingHospital.totalBeds && (
+                                        <div className="text-sm">
+                                          <span className="font-medium">Beds:</span> {viewingHospital.totalBeds}
+                                        </div>
+                                      )}
+                                      <div className="text-sm">
+                                        <span className="font-medium">License:</span> {viewingHospital.licenseNumber}
+                                      </div>
+                                      {viewingHospital.emergencyServices && (
+                                        <Badge className="bg-red-100 text-red-800">24/7 Emergency</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {viewingHospital.description && (
+                                    <div>
+                                      <h4 className="font-medium mb-2">Description</h4>
+                                      <p className="text-sm text-gray-600">{viewingHospital.description}</p>
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    <h4 className="font-medium mb-2">OPD Departments</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {viewingHospital.opdDepartments?.map((dept, index) => (
+                                        <Badge key={index} variant="outline">{dept}</Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </DialogContent>
+                          </Dialog>
+
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => setEditingHospital(hospital)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this hospital?')) {
+                                deleteHospitalMutation.mutate(hospital._id!);
+                              }
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600 flex items-center">
+                          <span className="font-medium">{hospital.hospitalType}</span>
+                          {hospital.emergencyServices && (
+                            <Badge className="ml-2 bg-red-100 text-red-800 text-xs">Emergency</Badge>
+                          )}
+                        </p>
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                          <Phone className="h-3 w-3" />
+                          <span>{hospital.contactNumber}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-sm text-gray-500">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">{hospital.email}</span>
+                        </div>
+
+                        <div className="mt-3">
+                          <p className="text-xs text-gray-500 mb-1">OPD Departments:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {hospital.opdDepartments?.slice(0, 3).map((dept, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">{dept}</Badge>
+                            ))}
+                            {(hospital.opdDepartments?.length || 0) > 3 && (
+                              <Badge variant="outline" className="text-xs">+{(hospital.opdDepartments?.length || 0) - 3} more</Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-gray-400 mt-2">
+                          Created: {new Date(hospital.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Hospital Dialog */}
+      {editingHospital && (
+        <Dialog open={!!editingHospital} onOpenChange={() => setEditingHospital(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Hospital</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={editForm.handleSubmit((data) => {
+              updateHospitalMutation.mutate({ 
+                id: editingHospital._id!, 
+                data: { ...data, opdDepartments: selectedDepartments } 
+              });
+            })} className="space-y-6">
+              {/* Similar form fields as creation but with pre-filled values */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-name">Hospital Name *</Label>
+                  <Input
+                    id="edit-name"
+                    {...editForm.register("name")}
+                    defaultValue={editingHospital.name}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-type">Hospital Type *</Label>
+                  <Select onValueChange={(value) => editForm.setValue("hospitalType", value)} defaultValue={editingHospital.hospitalType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="General">General</SelectItem>
+                      <SelectItem value="Multispecialty">Multispecialty</SelectItem>
+                      <SelectItem value="Specialized">Specialized</SelectItem>
+                      <SelectItem value="Teaching">Teaching Hospital</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Add more fields as needed */}
+              </div>
+              <div className="flex justify-end space-x-4">
+                <Button type="button" variant="outline" onClick={() => setEditingHospital(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateHospitalMutation.isPending}>
+                  {updateHospitalMutation.isPending ? "Updating..." : "Update Hospital"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
