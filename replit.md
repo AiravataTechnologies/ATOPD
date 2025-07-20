@@ -17,6 +17,8 @@ This is a full-stack OPD (Outpatient Department) management system designed for 
 - ✓ **Logic Fix**: Updated hospital registration to use specific OPD departments (General, ENT, Cardio, Gyno, Custom) instead of number input
 - ✓ **Doctor Registration Logic**: Fixed doctor registration to properly list actual OPD departments from selected hospitals
 - ✓ **Complete Workflow**: Full hierarchical registration system working (Hospital → OPD → Doctor → Patient)
+- ✓ **Form Logic Separation**: Fixed separation between hospital OPD departments (basic info) and OPD Management (detailed departments)
+- ✓ **Doctor Registration Fix**: Fixed form submission to use proper state management instead of DOM element access
 
 ## Current Status
 The system is fully operational with MongoDB integration and proper workflow logic:

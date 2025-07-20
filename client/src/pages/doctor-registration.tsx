@@ -19,6 +19,7 @@ export default function DoctorRegistration() {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [newTimeSlot, setNewTimeSlot] = useState("");
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+  const [selectedOpdId, setSelectedOpdId] = useState<string | null>(null);
 
   const form = useForm<Omit<InsertDoctor, "opdId" | "availableTimeSlots">>({
     resolver: zodResolver(insertDoctorSchema.omit({ opdId: true, availableTimeSlots: true })),
@@ -37,10 +38,12 @@ export default function DoctorRegistration() {
     queryKey: ["/api/hospitals"],
   });
 
-  const { data: opds } = useQuery<Opd[]>({
-    queryKey: ["/api/hospitals", selectedHospitalId, "opds"],
-    enabled: !!selectedHospitalId,
+  const { data: allOpds } = useQuery<Opd[]>({
+    queryKey: ["/api/opds"],
   });
+
+  // Filter OPDs by selected hospital
+  const opds = allOpds?.filter(opd => opd.hospitalId === selectedHospitalId) || [];
 
   const { data: doctors, isLoading } = useQuery<Doctor[]>({
     queryKey: ["/api/doctors"],
@@ -59,6 +62,8 @@ export default function DoctorRegistration() {
       });
       form.reset();
       setTimeSlots([]);
+      setSelectedHospitalId(null);
+      setSelectedOpdId(null);
       setShowForm(false);
     },
     onError: (error) => {
@@ -71,9 +76,7 @@ export default function DoctorRegistration() {
   });
 
   const onSubmit = (data: Omit<InsertDoctor, "opdId" | "availableTimeSlots">) => {
-    const opdId = (document.getElementById('opdSelect') as HTMLSelectElement)?.value;
-    
-    if (!opdId) {
+    if (!selectedOpdId) {
       toast({
         title: "Error",
         description: "Please select an OPD department",
@@ -93,7 +96,7 @@ export default function DoctorRegistration() {
 
     const doctorData: InsertDoctor = {
       ...data,
-      opdId: opdId,
+      opdId: selectedOpdId,
       availableTimeSlots: timeSlots,
     };
 
@@ -238,7 +241,10 @@ export default function DoctorRegistration() {
                 {/* Hospital Selection */}
                 <div className="md:col-span-2">
                   <Label htmlFor="hospitalSelect">Select Hospital *</Label>
-                  <Select value={selectedHospitalId || ""} onValueChange={setSelectedHospitalId}>
+                  <Select value={selectedHospitalId || ""} onValueChange={(value) => {
+                    setSelectedHospitalId(value);
+                    setSelectedOpdId(null); // Reset OPD selection when hospital changes
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Choose a hospital" />
                     </SelectTrigger>
@@ -255,21 +261,25 @@ export default function DoctorRegistration() {
                 {/* OPD Selection */}
                 <div className="md:col-span-2">
                   <Label htmlFor="opdSelect">Select OPD Department *</Label>
-                  <Select disabled={!selectedHospitalId}>
+                  <Select 
+                    disabled={!selectedHospitalId} 
+                    value={selectedOpdId || ""} 
+                    onValueChange={(value) => setSelectedOpdId(value)}
+                  >
                     <SelectTrigger id="opdSelect">
                       <SelectValue placeholder={selectedHospitalId ? "Choose an OPD department" : "Please select a hospital first"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {opds?.map((opd) => (
+                      {opds.map((opd) => (
                         <SelectItem key={opd._id} value={opd._id!}>
-                          {opd.name} - Room {opd.roomNumber}
+                          {opd.name} - Room {opd.roomNumber} ({opd.timings})
                         </SelectItem>
                       ))}
-                      {selectedHospitalId && hospitals?.find(h => h._id === selectedHospitalId)?.opdDepartments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept} (New Department)
+                      {selectedHospitalId && opds.length === 0 && (
+                        <SelectItem value="" disabled>
+                          No OPDs found. Please create OPDs in OPD Management first.
                         </SelectItem>
-                      ))}
+                      )}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500 mt-1">
