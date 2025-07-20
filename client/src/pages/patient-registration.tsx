@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { insertPatientSchema, type InsertPatient, type Patient, type Doctor } from "@shared/schema";
+import { insertPatientSchema, type InsertPatient, type Patient, type Doctor, type Hospital, type Opd } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, User, Phone, Heart, Calendar, PhoneCall, Camera, Eye, Edit } from "lucide-react";
 
@@ -23,6 +23,8 @@ type PatientFormData = Omit<InsertPatient, "existingConditions" | "allergies" | 
 export default function PatientRegistration() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
 
   const form = useForm<PatientFormData>({
     resolver: zodResolver(
@@ -69,9 +71,24 @@ export default function PatientRegistration() {
     },
   });
 
-  const { data: doctors } = useQuery<Doctor[]>({
+  const { data: hospitals } = useQuery<Hospital[]>({
+    queryKey: ["/api/hospitals"],
+  });
+
+  const { data: allDoctors } = useQuery<Doctor[]>({
     queryKey: ["/api/doctors"],
   });
+
+  const { data: allOpds } = useQuery<Opd[]>({
+    queryKey: ["/api/opds"],
+  });
+
+  // Filter doctors by selected hospital
+  const filteredDoctors = allDoctors?.filter(doctor => {
+    if (!selectedHospitalId) return false;
+    const doctorOpd = allOpds?.find(opd => opd._id === doctor.opdId);
+    return doctorOpd?.hospitalId === selectedHospitalId;
+  }) || [];
 
   const { data: patients, isLoading } = useQuery<Patient[]>({
     queryKey: ["/api/patients", "recent"],
@@ -89,6 +106,8 @@ export default function PatientRegistration() {
         description: "Patient registered successfully",
       });
       form.reset();
+      setSelectedHospitalId(null);
+      setSelectedDoctorId(null);
       setShowForm(false);
     },
     onError: (error) => {
@@ -120,9 +139,19 @@ export default function PatientRegistration() {
   }, [watchedDob, form]);
 
   const onSubmit = (data: PatientFormData) => {
+    if (!selectedDoctorId) {
+      toast({
+        title: "Error",
+        description: "Please select a doctor",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Convert comma-separated strings to arrays
     const patientData: InsertPatient = {
       ...data,
+      doctorId: selectedDoctorId,
       existingConditions: data.existingConditions
         ? data.existingConditions.split(',').map(item => item.trim()).filter(item => item.length > 0)
         : [],
@@ -429,24 +458,61 @@ export default function PatientRegistration() {
                       </p>
                     )}
                   </div>
-                  <div>
-                    <Label htmlFor="doctorId">Doctor *</Label>
-                    <Select onValueChange={(value) => form.setValue("doctorId", parseInt(value))}>
+                  <div className="md:col-span-3">
+                    <Label htmlFor="hospitalSelect">Select Hospital *</Label>
+                    <Select value={selectedHospitalId || ""} onValueChange={(value) => {
+                      setSelectedHospitalId(value);
+                      setSelectedDoctorId(null); // Reset doctor when hospital changes
+                    }}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Doctor" />
+                        <SelectValue placeholder="Choose a hospital" />
                       </SelectTrigger>
                       <SelectContent>
-                        {doctors?.map((doctor) => (
-                          <SelectItem key={doctor._id} value={doctor._id!}>
-                            {doctor.name} - {doctor.specialization}
+                        {hospitals?.map((hospital) => (
+                          <SelectItem key={hospital._id} value={hospital._id!}>
+                            {hospital.name} - {hospital.hospitalType}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-3">
+                    <Label htmlFor="doctorId">Select Doctor & OPD *</Label>
+                    <Select 
+                      disabled={!selectedHospitalId} 
+                      value={selectedDoctorId || ""} 
+                      onValueChange={setSelectedDoctorId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={selectedHospitalId ? "Choose a doctor" : "Please select a hospital first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredDoctors.map((doctor) => {
+                          const doctorOpd = allOpds?.find(opd => opd._id === doctor.opdId);
+                          return (
+                            <SelectItem key={doctor._id} value={doctor._id!}>
+                              {doctor.name} - {doctor.specialization} ({doctorOpd?.name} - Room {doctorOpd?.roomNumber})
+                            </SelectItem>
+                          );
+                        })}
+                        {selectedHospitalId && filteredDoctors.length === 0 && (
+                          <SelectItem value="no-doctors" disabled>
+                            No doctors found in this hospital. Please register doctors first.
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     {form.formState.errors.doctorId && (
                       <p className="text-sm text-destructive mt-1">
                         {form.formState.errors.doctorId.message}
                       </p>
+                    )}
+                    {selectedHospitalId && selectedDoctorId && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                        <p><strong>Hospital:</strong> {hospitals?.find(h => h._id === selectedHospitalId)?.name}</p>
+                        <p><strong>Doctor:</strong> {filteredDoctors.find(d => d._id === selectedDoctorId)?.name}</p>
+                        <p><strong>OPD:</strong> {allOpds?.find(opd => opd._id === filteredDoctors.find(d => d._id === selectedDoctorId)?.opdId)?.name}</p>
+                      </div>
                     )}
                   </div>
                   <div>
