@@ -9,13 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { insertHospitalSchema, type InsertHospital, type Hospital } from "@shared/schema";
+import { insertHospitalSchema, type InsertHospital, type Hospital, OPD_DEPARTMENTS } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, Building2 } from "lucide-react";
 
 export default function HospitalRegistration() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [customDepartment, setCustomDepartment] = useState("");
 
   const form = useForm<InsertHospital>({
     resolver: zodResolver(insertHospitalSchema),
@@ -26,7 +28,7 @@ export default function HospitalRegistration() {
       email: "",
       licenseNumber: "",
       hospitalType: "",
-      numberOfOpdDepartments: 0,
+      opdDepartments: [],
     },
   });
 
@@ -46,6 +48,8 @@ export default function HospitalRegistration() {
         description: "Hospital registered successfully",
       });
       form.reset();
+      setSelectedDepartments([]);
+      setCustomDepartment("");
       setShowForm(false);
     },
     onError: (error) => {
@@ -57,8 +61,41 @@ export default function HospitalRegistration() {
     },
   });
 
-  const onSubmit = (data: InsertHospital) => {
-    createHospitalMutation.mutate(data);
+  const onSubmit = (data: Omit<InsertHospital, "opdDepartments">) => {
+    if (selectedDepartments.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one OPD department",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const hospitalData: InsertHospital = {
+      ...data,
+      opdDepartments: selectedDepartments,
+    };
+
+    createHospitalMutation.mutate(hospitalData);
+  };
+
+  const toggleDepartment = (dept: string) => {
+    setSelectedDepartments(prev => 
+      prev.includes(dept) 
+        ? prev.filter(d => d !== dept)
+        : [...prev, dept]
+    );
+  };
+
+  const addCustomDepartment = () => {
+    if (customDepartment.trim() && !selectedDepartments.includes(customDepartment.trim())) {
+      setSelectedDepartments(prev => [...prev, customDepartment.trim()]);
+      setCustomDepartment("");
+    }
+  };
+
+  const removeDepartment = (dept: string) => {
+    setSelectedDepartments(prev => prev.filter(d => d !== dept));
   };
 
   return (
@@ -177,19 +214,70 @@ export default function HospitalRegistration() {
                   )}
                 </div>
 
-                <div>
-                  <Label htmlFor="numberOfOpdDepartments">Number of OPD Departments *</Label>
-                  <Input
-                    id="numberOfOpdDepartments"
-                    type="number"
-                    {...form.register("numberOfOpdDepartments", { valueAsNumber: true })}
-                    placeholder="Enter number of departments"
-                  />
-                  {form.formState.errors.numberOfOpdDepartments && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.numberOfOpdDepartments.message}
-                    </p>
-                  )}
+                {/* OPD Department Selection */}
+                <div className="md:col-span-2">
+                  <Label>OPD Departments *</Label>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-3">Select the OPD departments your hospital offers:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {OPD_DEPARTMENTS.map((dept) => (
+                          <div key={dept} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={dept}
+                              checked={selectedDepartments.includes(dept)}
+                              onChange={() => toggleDepartment(dept)}
+                              className="rounded border-gray-300"
+                            />
+                            <Label htmlFor={dept} className="text-sm font-normal cursor-pointer">
+                              {dept}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Department Input */}
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2">Or add a custom department:</p>
+                      <div className="flex space-x-2">
+                        <Input
+                          value={customDepartment}
+                          onChange={(e) => setCustomDepartment(e.target.value)}
+                          placeholder="Enter custom department name"
+                          className="flex-1"
+                        />
+                        <Button type="button" onClick={addCustomDepartment} variant="outline" size="sm">
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Selected Departments */}
+                    {selectedDepartments.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Selected Departments:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedDepartments.map((dept) => (
+                            <span
+                              key={dept}
+                              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {dept}
+                              <button
+                                type="button"
+                                onClick={() => removeDepartment(dept)}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -239,7 +327,7 @@ export default function HospitalRegistration() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {hospitals?.map((hospital) => (
-                    <tr key={hospital.id} className="hover:bg-gray-50">
+                    <tr key={hospital._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {hospital.name}
                       </td>
@@ -250,7 +338,13 @@ export default function HospitalRegistration() {
                         {hospital.contactNumber}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {hospital.numberOfOpdDepartments}
+                        <div className="flex flex-wrap gap-1">
+                          {hospital.opdDepartments.map((dept, index) => (
+                            <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                              {dept}
+                            </span>
+                          ))}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(hospital.createdAt).toLocaleDateString()}

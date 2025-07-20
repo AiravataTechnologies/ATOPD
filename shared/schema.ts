@@ -11,9 +11,12 @@ export const hospitalSchema = z.object({
   email: z.string().email(),
   licenseNumber: z.string(),
   hospitalType: z.string(),
-  numberOfOpdDepartments: z.number(),
+  opdDepartments: z.array(z.string()).default([]), // Changed from numberOfOpdDepartments
   createdAt: z.date().default(() => new Date()),
 });
+
+// Predefined OPD department types
+export const OPD_DEPARTMENTS = ["General", "ENT", "Cardio", "Gyno"] as const;
 
 // OPD schema
 export const opdSchema = z.object({

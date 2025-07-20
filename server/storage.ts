@@ -21,7 +21,7 @@ export type Hospital = {
   email: string;
   licenseNumber: string;
   hospitalType: string;
-  numberOfOpdDepartments: number;
+  opdDepartments: string[];
   createdAt: Date;
 };
 
@@ -32,7 +32,7 @@ export type InsertHospital = {
   email: string;
   licenseNumber: string;
   hospitalType: string;
-  numberOfOpdDepartments: number;
+  opdDepartments: string[];
 };
 
 export type OPD = {

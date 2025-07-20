@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { insertDoctorSchema, type InsertDoctor, type Doctor, type Opd } from "@shared/schema";
+import { insertDoctorSchema, type InsertDoctor, type Doctor, type Opd, type Hospital } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, UserRound } from "lucide-react";
 
@@ -18,6 +18,7 @@ export default function DoctorRegistration() {
   const [showForm, setShowForm] = useState(false);
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [newTimeSlot, setNewTimeSlot] = useState("");
+  const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
 
   const form = useForm<Omit<InsertDoctor, "opdId" | "availableTimeSlots">>({
     resolver: zodResolver(insertDoctorSchema.omit({ opdId: true, availableTimeSlots: true })),
@@ -30,6 +31,15 @@ export default function DoctorRegistration() {
       experienceYears: 0,
       doctorLicenseId: "",
     },
+  });
+
+  const { data: hospitals } = useQuery<Hospital[]>({
+    queryKey: ["/api/hospitals"],
+  });
+
+  const { data: opds } = useQuery<Opd[]>({
+    queryKey: ["/api/hospitals", selectedHospitalId, "opds"],
+    enabled: !!selectedHospitalId,
   });
 
   const { data: doctors, isLoading } = useQuery<Doctor[]>({
@@ -61,12 +71,12 @@ export default function DoctorRegistration() {
   });
 
   const onSubmit = (data: Omit<InsertDoctor, "opdId" | "availableTimeSlots">) => {
-    const opdId = form.watch("opdId" as any);
+    const opdId = (document.getElementById('opdSelect') as HTMLSelectElement)?.value;
     
     if (!opdId) {
       toast({
         title: "Error",
-        description: "Please select an OPD",
+        description: "Please select an OPD department",
         variant: "destructive",
       });
       return;
@@ -225,16 +235,45 @@ export default function DoctorRegistration() {
                   )}
                 </div>
 
-                <div>
-                  <Label htmlFor="opdId">OPD Department *</Label>
-                  <Input
-                    id="opdId"
-                    type="number"
-                    {...form.register("opdId" as any, { valueAsNumber: true })}
-                    placeholder="OPD ID"
-                  />
+                {/* Hospital Selection */}
+                <div className="md:col-span-2">
+                  <Label htmlFor="hospitalSelect">Select Hospital *</Label>
+                  <Select value={selectedHospitalId || ""} onValueChange={setSelectedHospitalId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a hospital" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {hospitals?.map((hospital) => (
+                        <SelectItem key={hospital._id} value={hospital._id!}>
+                          {hospital.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* OPD Selection */}
+                <div className="md:col-span-2">
+                  <Label htmlFor="opdSelect">Select OPD Department *</Label>
+                  <Select disabled={!selectedHospitalId}>
+                    <SelectTrigger id="opdSelect">
+                      <SelectValue placeholder={selectedHospitalId ? "Choose an OPD department" : "Please select a hospital first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {opds?.map((opd) => (
+                        <SelectItem key={opd._id} value={opd._id!}>
+                          {opd.name} - Room {opd.roomNumber}
+                        </SelectItem>
+                      ))}
+                      {selectedHospitalId && hospitals?.find(h => h._id === selectedHospitalId)?.opdDepartments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept} (New Department)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Note: In a real application, this would be a dropdown populated from OPDs API
+                    Select from existing OPD departments or available hospital departments
                   </p>
                 </div>
               </div>
