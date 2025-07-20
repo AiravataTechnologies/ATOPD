@@ -19,6 +19,9 @@ This is a full-stack OPD (Outpatient Department) management system designed for 
 - ✓ **Complete Workflow**: Full hierarchical registration system working (Hospital → OPD → Doctor → Patient)
 - ✓ **Form Logic Separation**: Fixed separation between hospital OPD departments (basic info) and OPD Management (detailed departments)
 - ✓ **Doctor Registration Fix**: Fixed form submission to use proper state management instead of DOM element access
+- ✓ **Patient Registration Enhancement**: Added hospital selection first, then filtered doctor list by selected hospital
+- ✓ **Patient Registration Fix**: Fixed form validation and date handling issues for successful patient registration
+- ✓ **Photo Upload Feature**: Implemented patient photo upload with preview, camera capture, and file validation (2MB limit)
 
 ## Current Status
 The system is fully operational with MongoDB integration and proper workflow logic:

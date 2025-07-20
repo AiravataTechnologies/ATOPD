@@ -121,6 +121,9 @@ export const insertPatientSchema = patientSchema.omit({
   registrationDate: true,
   opdId: true,
   hospitalId: true,
+}).extend({
+  dob: z.coerce.date(),
+  appointmentDate: z.coerce.date(),
 });
 
 export const insertUserSchema = userSchema.omit({

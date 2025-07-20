@@ -122,9 +122,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Patient routes
   app.post("/api/patients/register", async (req, res) => {
     try {
-      // Parse comma-separated arrays
+      // Parse comma-separated arrays and convert dates
       const processedBody = { ...req.body };
       
+      // Handle array fields
       ['existingConditions', 'allergies', 'medications', 'pastDiseases'].forEach(field => {
         if (processedBody[field] && typeof processedBody[field] === 'string') {
           processedBody[field] = processedBody[field]
@@ -133,6 +134,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .filter((item: string) => item.length > 0);
         }
       });
+
+      // Handle date fields
+      if (processedBody.dob) {
+        processedBody.dob = new Date(processedBody.dob);
+      }
+      if (processedBody.appointmentDate) {
+        processedBody.appointmentDate = new Date(processedBody.appointmentDate);
+      }
 
       const patientData = insertPatientSchema.parse(processedBody);
       const patient = await storage.createPatient(patientData);

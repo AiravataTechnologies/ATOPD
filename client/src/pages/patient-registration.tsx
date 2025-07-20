@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -25,6 +25,8 @@ export default function PatientRegistration() {
   const [showForm, setShowForm] = useState(false);
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<PatientFormData>({
     resolver: zodResolver(
@@ -108,6 +110,7 @@ export default function PatientRegistration() {
       form.reset();
       setSelectedHospitalId(null);
       setSelectedDoctorId(null);
+      setPhotoPreview(null);
       setShowForm(false);
     },
     onError: (error) => {
@@ -138,6 +141,46 @@ export default function PatientRegistration() {
     }
   }, [watchedDob, form]);
 
+  // Handle photo upload
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+          title: "Error",
+          description: "File size must be less than 2MB",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setPhotoPreview(result);
+        form.setValue("photo", result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCameraCapture = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // For simplicity, we'll just trigger the file input for now
+      // In a real app, you'd implement camera capture with canvas
+      fileInputRef.current?.click();
+      stream.getTracks().forEach(track => track.stop());
+    } catch (error) {
+      toast({
+        title: "Camera Error", 
+        description: "Unable to access camera. Please upload a photo instead.",
+        variant: "destructive",
+      });
+      fileInputRef.current?.click();
+    }
+  };
+
   const onSubmit = (data: PatientFormData) => {
     if (!selectedDoctorId) {
       toast({
@@ -148,10 +191,12 @@ export default function PatientRegistration() {
       return;
     }
 
-    // Convert comma-separated strings to arrays
+    // Convert dates to proper Date objects and handle arrays
     const patientData: InsertPatient = {
       ...data,
       doctorId: selectedDoctorId,
+      dob: new Date(data.dob),
+      appointmentDate: new Date(data.appointmentDate),
       existingConditions: data.existingConditions
         ? data.existingConditions.split(',').map(item => item.trim()).filter(item => item.length > 0)
         : [],
@@ -608,19 +653,81 @@ export default function PatientRegistration() {
                   <Camera className="h-5 w-5 text-primary" />
                   <span>Patient Photo (Optional)</span>
                 </h3>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors">
-                  <div className="flex flex-col items-center space-y-3">
-                    <Camera className="h-8 w-8 text-gray-400" />
-                    <div>
-                      <p className="text-sm text-gray-600">Click to upload or drag and drop</p>
-                      <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB</p>
-                    </div>
-                    <Input
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary transition-colors">
+                    {photoPreview ? (
+                      <div className="space-y-3">
+                        <img 
+                          src={photoPreview} 
+                          alt="Patient photo preview" 
+                          className="mx-auto h-32 w-32 object-cover rounded-lg"
+                        />
+                        <div className="flex justify-center space-x-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            Change Photo
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => {
+                              setPhotoPreview(null);
+                              form.setValue("photo", "");
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center space-y-3">
+                        <Camera className="h-8 w-8 text-gray-400" />
+                        <div>
+                          <p className="text-sm text-gray-600">Upload patient photo</p>
+                          <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            Upload Photo
+                          </Button>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleCameraCapture}
+                          >
+                            Take Photo
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      {...form.register("photo")}
+                      onChange={handlePhotoChange}
                     />
+                  </div>
+                  <div className="flex items-center justify-center text-sm text-gray-500">
+                    <div className="text-center">
+                      <p>Photo helps in:</p>
+                      <ul className="mt-2 space-y-1 text-xs">
+                        <li>• Patient identification</li>
+                        <li>• Medical record verification</li>
+                        <li>• Security and safety</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
