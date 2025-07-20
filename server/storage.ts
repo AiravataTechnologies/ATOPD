@@ -1,192 +1,371 @@
-import { 
-  hospitals, 
-  opds, 
-  doctors, 
-  patients,
-  type Hospital, 
-  type InsertHospital,
-  type Opd,
-  type InsertOpd,
-  type Doctor,
-  type InsertDoctor,
-  type Patient,
-  type InsertPatient,
-  type User,
-  type InsertUser,
-  users
-} from "@shared/schema";
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { MongoClient, Db, ObjectId } from "mongodb";
+import { connectToDatabase } from "./db";
 
+// Types from the shared schema
+export type User = {
+  _id?: string;
+  username: string;
+  password: string;
+};
+
+export type InsertUser = {
+  username: string;
+  password: string;
+};
+
+export type Hospital = {
+  _id?: string;
+  name: string;
+  address: string;
+  contactNumber: string;
+  email: string;
+  licenseNumber: string;
+  hospitalType: string;
+  numberOfOpdDepartments: number;
+  createdAt: Date;
+};
+
+export type InsertHospital = {
+  name: string;
+  address: string;
+  contactNumber: string;
+  email: string;
+  licenseNumber: string;
+  hospitalType: string;
+  numberOfOpdDepartments: number;
+};
+
+export type OPD = {
+  _id?: string;
+  hospitalId: string;
+  name: string;
+  roomNumber: string;
+  timings: string;
+  operationDays: string[];
+  departmentHead?: string;
+  createdAt: Date;
+};
+
+export type InsertOPD = {
+  hospitalId: string;
+  name: string;
+  roomNumber: string;
+  timings: string;
+  operationDays: string[];
+  departmentHead?: string;
+};
+
+export type Doctor = {
+  _id?: string;
+  opdId: string;
+  name: string;
+  email: string;
+  mobileNumber: string;
+  specialization: string;
+  availableTimeSlots: string[];
+  qualification: string;
+  experienceYears: number;
+  doctorLicenseId: string;
+  createdAt: Date;
+};
+
+export type InsertDoctor = {
+  opdId: string;
+  name: string;
+  email: string;
+  mobileNumber: string;
+  specialization: string;
+  availableTimeSlots: string[];
+  qualification: string;
+  experienceYears: number;
+  doctorLicenseId: string;
+};
+
+export type Patient = {
+  _id?: string;
+  patientId: string;
+  fullName: string;
+  gender: "Male" | "Female" | "Other";
+  dob: Date;
+  age?: number;
+  bloodGroup?: string;
+  mobileNumber: string;
+  email?: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  weight?: number;
+  height?: number;
+  existingConditions: string[];
+  allergies: string[];
+  medications: string[];
+  pastDiseases: string[];
+  familyHistory?: string;
+  visitType: "New" | "Follow-up";
+  doctorId: string;
+  opdId: string;
+  hospitalId: string;
+  appointmentDate: Date;
+  symptoms: string;
+  emergencyContactName: string;
+  emergencyContactNumber: string;
+  relationWithPatient: string;
+  photo?: string;
+  registrationDate: Date;
+};
+
+export type InsertPatient = {
+  fullName: string;
+  gender: "Male" | "Female" | "Other";
+  dob: Date;
+  age?: number;
+  bloodGroup?: string;
+  mobileNumber: string;
+  email?: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  weight?: number;
+  height?: number;
+  existingConditions: string[];
+  allergies: string[];
+  medications: string[];
+  pastDiseases: string[];
+  familyHistory?: string;
+  visitType: "New" | "Follow-up";
+  doctorId: string;
+  appointmentDate: Date;
+  symptoms: string;
+  emergencyContactName: string;
+  emergencyContactNumber: string;
+  relationWithPatient: string;
+  photo?: string;
+};
+
+// Storage interface
 export interface IStorage {
-  // User methods (existing)
-  getUser(id: number): Promise<User | undefined>;
+  // User methods
+  getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
+  createUser(insertUser: InsertUser): Promise<User>;
+
   // Hospital methods
   createHospital(hospital: InsertHospital): Promise<Hospital>;
-  getHospital(id: number): Promise<Hospital | undefined>;
+  getHospital(id: string): Promise<Hospital | undefined>;
   getAllHospitals(): Promise<Hospital[]>;
-  
+
   // OPD methods
-  createOpd(opd: InsertOpd): Promise<Opd>;
-  getOpd(id: number): Promise<Opd | undefined>;
-  getOpdsByHospital(hospitalId: number): Promise<Opd[]>;
-  
+  createOPD(opd: InsertOPD): Promise<OPD>;
+  getOPD(id: string): Promise<OPD | undefined>;
+  getOPDsByHospital(hospitalId: string): Promise<OPD[]>;
+  getAllOPDs(): Promise<OPD[]>;
+
   // Doctor methods
   createDoctor(doctor: InsertDoctor): Promise<Doctor>;
-  getDoctor(id: number): Promise<Doctor | undefined>;
-  getDoctorsByOpd(opdId: number): Promise<Doctor[]>;
+  getDoctor(id: string): Promise<Doctor | undefined>;
+  getDoctorsByOPD(opdId: string): Promise<Doctor[]>;
   getAllDoctors(): Promise<Doctor[]>;
-  
-  // Patient methods
+
+  // Patient methods  
   createPatient(patient: InsertPatient): Promise<Patient>;
-  getPatient(id: number): Promise<Patient | undefined>;
-  getPatientsByDoctor(doctorId: number): Promise<Patient[]>;
-  getRecentPatients(limit?: number): Promise<Patient[]>;
+  getPatient(id: string): Promise<Patient | undefined>;
   getAllPatients(): Promise<Patient[]>;
+  getRecentPatients(limit: number): Promise<Patient[]>;
+  getPatientsByDoctor(doctorId: string): Promise<Patient[]>;
+}
+
+// Helper function to convert MongoDB documents to typed objects with string _id
+function convertToTypedDocument<T>(doc: any): T {
+  if (!doc) return doc;
+  return {
+    ...doc,
+    _id: doc._id.toString()
+  };
 }
 
 export class DatabaseStorage implements IStorage {
+  private async getDb(): Promise<Db> {
+    const { db } = await connectToDatabase();
+    return db;
+  }
+
   // User methods
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+  async getUser(id: string): Promise<User | undefined> {
+    const db = await this.getDb();
+    const user = await db.collection("users").findOne({ _id: new ObjectId(id) });
+    return user ? convertToTypedDocument<User>(user) : undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
+    const db = await this.getDb();
+    const user = await db.collection("users").findOne({ username });
+    return user ? convertToTypedDocument<User>(user) : undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
+    const db = await this.getDb();
+    const result = await db.collection("users").insertOne(insertUser);
+    const newUser = await db.collection("users").findOne({ _id: result.insertedId });
+    return convertToTypedDocument<User>(newUser!);
   }
 
   // Hospital methods
   async createHospital(hospital: InsertHospital): Promise<Hospital> {
-    const [newHospital] = await db
-      .insert(hospitals)
-      .values(hospital)
-      .returning();
-    return newHospital;
+    const db = await this.getDb();
+    const hospitalData = {
+      ...hospital,
+      createdAt: new Date()
+    };
+    const result = await db.collection("hospitals").insertOne(hospitalData);
+    const newHospital = await db.collection("hospitals").findOne({ _id: result.insertedId });
+    return convertToTypedDocument<Hospital>(newHospital!);
   }
 
-  async getHospital(id: number): Promise<Hospital | undefined> {
-    const [hospital] = await db.select().from(hospitals).where(eq(hospitals.id, id));
-    return hospital || undefined;
+  async getHospital(id: string): Promise<Hospital | undefined> {
+    const db = await this.getDb();
+    const hospital = await db.collection("hospitals").findOne({ _id: new ObjectId(id) });
+    return hospital ? convertToTypedDocument<Hospital>(hospital) : undefined;
   }
 
   async getAllHospitals(): Promise<Hospital[]> {
-    return await db.select().from(hospitals).orderBy(desc(hospitals.createdAt));
+    const db = await this.getDb();
+    const hospitals = await db.collection("hospitals").find({}).sort({ createdAt: -1 }).toArray();
+    return hospitals.map(h => convertToTypedDocument<Hospital>(h));
   }
 
   // OPD methods
-  async createOpd(opd: InsertOpd): Promise<Opd> {
-    const [newOpd] = await db
-      .insert(opds)
-      .values(opd)
-      .returning();
-    return newOpd;
+  async createOPD(opd: InsertOPD): Promise<OPD> {
+    const db = await this.getDb();
+    const opdData = {
+      ...opd,
+      createdAt: new Date()
+    };
+    const result = await db.collection("opds").insertOne(opdData);
+    const newOPD = await db.collection("opds").findOne({ _id: result.insertedId });
+    return convertToTypedDocument<OPD>(newOPD!);
   }
 
-  async getOpd(id: number): Promise<Opd | undefined> {
-    const [opd] = await db.select().from(opds).where(eq(opds.id, id));
-    return opd || undefined;
+  async getOPD(id: string): Promise<OPD | undefined> {
+    const db = await this.getDb();
+    const opd = await db.collection("opds").findOne({ _id: new ObjectId(id) });
+    return opd ? convertToTypedDocument<OPD>(opd) : undefined;
   }
 
-  async getOpdsByHospital(hospitalId: number): Promise<Opd[]> {
-    return await db.select().from(opds).where(eq(opds.hospitalId, hospitalId));
+  async getOPDsByHospital(hospitalId: string): Promise<OPD[]> {
+    const db = await this.getDb();
+    const opds = await db.collection("opds").find({ hospitalId }).sort({ createdAt: -1 }).toArray();
+    return opds.map(o => convertToTypedDocument<OPD>(o));
+  }
+
+  async getAllOPDs(): Promise<OPD[]> {
+    const db = await this.getDb();
+    const opds = await db.collection("opds").find({}).sort({ createdAt: -1 }).toArray();
+    return opds.map(o => convertToTypedDocument<OPD>(o));
   }
 
   // Doctor methods
   async createDoctor(doctor: InsertDoctor): Promise<Doctor> {
-    const [newDoctor] = await db
-      .insert(doctors)
-      .values(doctor)
-      .returning();
-    return newDoctor;
+    const db = await this.getDb();
+    const doctorData = {
+      ...doctor,
+      createdAt: new Date()
+    };
+    const result = await db.collection("doctors").insertOne(doctorData);
+    const newDoctor = await db.collection("doctors").findOne({ _id: result.insertedId });
+    return convertToTypedDocument<Doctor>(newDoctor!);
   }
 
-  async getDoctor(id: number): Promise<Doctor | undefined> {
-    const [doctor] = await db.select().from(doctors).where(eq(doctors.id, id));
-    return doctor || undefined;
+  async getDoctor(id: string): Promise<Doctor | undefined> {
+    const db = await this.getDb();
+    const doctor = await db.collection("doctors").findOne({ _id: new ObjectId(id) });
+    return doctor ? convertToTypedDocument<Doctor>(doctor) : undefined;
   }
 
-  async getDoctorsByOpd(opdId: number): Promise<Doctor[]> {
-    return await db.select().from(doctors).where(eq(doctors.opdId, opdId));
+  async getDoctorsByOPD(opdId: string): Promise<Doctor[]> {
+    const db = await this.getDb();
+    const doctors = await db.collection("doctors").find({ opdId }).sort({ createdAt: -1 }).toArray();
+    return doctors.map(d => convertToTypedDocument<Doctor>(d));
   }
 
   async getAllDoctors(): Promise<Doctor[]> {
-    return await db.select().from(doctors).orderBy(desc(doctors.createdAt));
+    const db = await this.getDb();
+    const doctors = await db.collection("doctors").find({}).sort({ createdAt: -1 }).toArray();
+    return doctors.map(d => convertToTypedDocument<Doctor>(d));
   }
 
   // Patient methods
-  async createPatient(patient: InsertPatient): Promise<Patient> {
-    // Generate unique patient ID
-    const patientId = `PAT${nanoid(6).toUpperCase()}`;
+  async createPatient(insertPatient: InsertPatient): Promise<Patient> {
+    const db = await this.getDb();
     
-    // Get doctor to derive opdId and hospitalId
-    const doctor = await this.getDoctor(patient.doctorId);
+    // Generate unique patient ID
+    const lastPatient = await db.collection("patients")
+      .findOne({}, { sort: { patientId: -1 } });
+    
+    let nextPatientNumber = 1;
+    if (lastPatient && lastPatient.patientId) {
+      const lastNumber = parseInt(lastPatient.patientId.replace("PAT", ""));
+      nextPatientNumber = lastNumber + 1;
+    }
+    
+    const patientId = `PAT${nextPatientNumber.toString().padStart(4, "0")}`;
+
+    // Get hospital and OPD IDs from the selected doctor
+    const doctor = await db.collection("doctors").findOne({ _id: new ObjectId(insertPatient.doctorId) });
     if (!doctor) {
       throw new Error("Doctor not found");
     }
-    
-    const opd = await this.getOpd(doctor.opdId);
-    if (!opd) {
-      throw new Error("OPD not found");
-    }
-
-    // Auto-calculate age if not provided
-    let age = patient.age;
-    if (!age && patient.dob) {
-      const dobDate = new Date(patient.dob);
-      const today = new Date();
-      age = today.getFullYear() - dobDate.getFullYear();
-      const monthDiff = today.getMonth() - dobDate.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate())) {
-        age--;
-      }
-    }
 
     const patientData = {
-      ...patient,
+      ...insertPatient,
       patientId,
-      age,
       opdId: doctor.opdId,
-      hospitalId: opd.hospitalId,
+      hospitalId: doctor.hospitalId || await this.getHospitalIdFromOPD(doctor.opdId),
+      registrationDate: new Date(),
+      existingConditions: insertPatient.existingConditions || [],
+      allergies: insertPatient.allergies || [],
+      medications: insertPatient.medications || [],
+      pastDiseases: insertPatient.pastDiseases || []
     };
 
-    const [newPatient] = await db
-      .insert(patients)
-      .values(patientData)
-      .returning();
-    return newPatient;
+    const result = await db.collection("patients").insertOne(patientData);
+    const newPatient = await db.collection("patients").findOne({ _id: result.insertedId });
+    return convertToTypedDocument<Patient>(newPatient!);
   }
 
-  async getPatient(id: number): Promise<Patient | undefined> {
-    const [patient] = await db.select().from(patients).where(eq(patients.id, id));
-    return patient || undefined;
+  private async getHospitalIdFromOPD(opdId: string): Promise<string> {
+    const db = await this.getDb();
+    const opd = await db.collection("opds").findOne({ _id: new ObjectId(opdId) });
+    return opd?.hospitalId || "";
   }
 
-  async getPatientsByDoctor(doctorId: number): Promise<Patient[]> {
-    return await db.select().from(patients).where(eq(patients.doctorId, doctorId));
-  }
-
-  async getRecentPatients(limit: number = 10): Promise<Patient[]> {
-    return await db.select().from(patients)
-      .orderBy(desc(patients.registrationDate))
-      .limit(limit);
+  async getPatient(id: string): Promise<Patient | undefined> {
+    const db = await this.getDb();
+    const patient = await db.collection("patients").findOne({ _id: new ObjectId(id) });
+    return patient ? convertToTypedDocument<Patient>(patient) : undefined;
   }
 
   async getAllPatients(): Promise<Patient[]> {
-    return await db.select().from(patients).orderBy(desc(patients.registrationDate));
+    const db = await this.getDb();
+    const patients = await db.collection("patients").find({}).sort({ registrationDate: -1 }).toArray();
+    return patients.map(p => convertToTypedDocument<Patient>(p));
+  }
+
+  async getRecentPatients(limit: number): Promise<Patient[]> {
+    const db = await this.getDb();
+    const patients = await db.collection("patients")
+      .find({})
+      .sort({ registrationDate: -1 })
+      .limit(limit)
+      .toArray();
+    return patients.map(p => convertToTypedDocument<Patient>(p));
+  }
+
+  async getPatientsByDoctor(doctorId: string): Promise<Patient[]> {
+    const db = await this.getDb();
+    const patients = await db.collection("patients").find({ doctorId }).sort({ registrationDate: -1 }).toArray();
+    return patients.map(p => convertToTypedDocument<Patient>(p));
   }
 }
 

@@ -30,7 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/hospitals/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const hospital = await storage.getHospital(id);
       if (!hospital) {
         return res.status(404).json({ message: "Hospital not found" });
@@ -44,14 +44,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // OPD routes
   app.post("/api/hospitals/:hospitalId/opds", async (req, res) => {
     try {
-      const hospitalId = parseInt(req.params.hospitalId);
+      const hospitalId = req.params.hospitalId;
       const hospital = await storage.getHospital(hospitalId);
       if (!hospital) {
         return res.status(404).json({ message: "Hospital not found" });
       }
 
       const opdData = insertOpdSchema.parse({ ...req.body, hospitalId });
-      const opd = await storage.createOpd(opdData);
+      const opd = await storage.createOPD(opdData);
       res.status(201).json(opd);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -63,8 +63,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/hospitals/:hospitalId/opds", async (req, res) => {
     try {
-      const hospitalId = parseInt(req.params.hospitalId);
-      const opds = await storage.getOpdsByHospital(hospitalId);
+      const hospitalId = req.params.hospitalId;
+      const opds = await storage.getOPDsByHospital(hospitalId);
+      res.json(opds);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch OPDs", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/opds", async (req, res) => {
+    try {
+      const opds = await storage.getAllOPDs();
       res.json(opds);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch OPDs", error: (error as Error).message });
@@ -74,8 +83,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Doctor routes
   app.post("/api/opds/:opdId/doctors", async (req, res) => {
     try {
-      const opdId = parseInt(req.params.opdId);
-      const opd = await storage.getOpd(opdId);
+      const opdId = req.params.opdId;
+      const opd = await storage.getOPD(opdId);
       if (!opd) {
         return res.status(404).json({ message: "OPD not found" });
       }
@@ -93,8 +102,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/opds/:opdId/doctors", async (req, res) => {
     try {
-      const opdId = parseInt(req.params.opdId);
-      const doctors = await storage.getDoctorsByOpd(opdId);
+      const opdId = req.params.opdId;
+      const doctors = await storage.getDoctorsByOPD(opdId);
       res.json(doctors);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch doctors", error: (error as Error).message });
@@ -157,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/patients/:id", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const patient = await storage.getPatient(id);
       if (!patient) {
         return res.status(404).json({ message: "Patient not found" });
