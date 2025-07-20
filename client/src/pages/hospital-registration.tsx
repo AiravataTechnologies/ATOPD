@@ -339,7 +339,7 @@ export default function HospitalRegistration() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex flex-wrap gap-1">
-                          {hospital.opdDepartments.map((dept, index) => (
+                          {(hospital.opdDepartments || []).map((dept, index) => (
                             <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
                               {dept}
                             </span>
