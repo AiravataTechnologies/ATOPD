@@ -30,6 +30,11 @@ export default function HospitalRegistration() {
 
   const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // PDF upload refs
+  const registrationCertRef = useRef<HTMLInputElement>(null);
+  const licenseDocRef = useRef<HTMLInputElement>(null);
+  const gstCertRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<InsertHospital>({
     resolver: zodResolver(insertHospitalSchema),
@@ -46,20 +51,20 @@ export default function HospitalRegistration() {
       city: "",
       state: "",
       pinCode: "",
-      contactNumber: "",
+      contactNumber: "+91 ",
       email: "",
       website: "",
       
       // Administrator/Owner Details
       adminFullName: "",
       adminDesignation: "",
-      adminMobileNumber: "",
+      adminMobileNumber: "+91 ",
       adminEmailId: "",
       
       // Licensing & Accreditation
       licenseNumber: "",
       issuingAuthority: "",
-      licenseValidityDate: new Date(),
+      licenseValidityDate: new Date().toISOString().split('T')[0],
       nabhAccreditation: false,
       gstNumber: "",
       
@@ -122,6 +127,44 @@ export default function HospitalRegistration() {
     },
   });
 
+  // Handle specialization change and auto-populate OPD departments
+  const handleSpecializationChange = (specialization: string, checked: boolean) => {
+    const currentSpecializations = form.getValues("specializations") || [];
+    let updatedSpecializations: string[];
+    
+    if (checked) {
+      updatedSpecializations = [...currentSpecializations, specialization];
+    } else {
+      updatedSpecializations = currentSpecializations.filter(s => s !== specialization);
+    }
+    
+    form.setValue("specializations", updatedSpecializations);
+    setSelectedSpecializations(updatedSpecializations);
+    
+    // Auto-populate OPD departments based on specializations
+    const opdMapping: { [key: string]: string } = {
+      "General": "General",
+      "Cardiology": "Cardio", 
+      "ENT": "ENT",
+      "Gynecology": "Gyno",
+      "Orthopedic": "Orthopedic",
+      "Pediatrics": "Pediatrics",
+      "Dermatology": "Dermatology",
+      "Ophthalmology": "Ophthalmology",
+      "Neurology": "Neurology",
+      "Emergency Medicine": "Emergency"
+    };
+    
+    const autoOpdDepartments = updatedSpecializations
+      .map(spec => opdMapping[spec] || spec)
+      .filter(Boolean);
+    
+    // Combine auto-populated departments with manually selected ones
+    const allDepartments = [...new Set([...selectedDepartments, ...autoOpdDepartments])];
+    setSelectedDepartments(allDepartments);
+    form.setValue("opdDepartments", allDepartments);
+  };
+
   // Handle image upload
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -143,6 +186,46 @@ export default function HospitalRegistration() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Handle PDF file uploads
+  const handlePdfUpload = (fileType: 'registration' | 'license' | 'gst') => {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit for PDFs
+          toast({
+            title: "Error",
+            description: "File size must be less than 10MB",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!file.type.includes('pdf') && !file.type.includes('image')) {
+          toast({
+            title: "Error",
+            description: "Please upload a PDF or image file",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const result = e.target?.result as string;
+          const fieldName = fileType === 'registration' ? 'registrationCertificate' : 
+                           fileType === 'license' ? 'licenseDocument' : 'gstCertificate';
+          form.setValue(fieldName, result);
+          
+          toast({
+            title: "Success",
+            description: `${fileType.charAt(0).toUpperCase() + fileType.slice(1)} document uploaded successfully`,
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+    };
   };
 
   // Update hospital mutation
@@ -205,6 +288,10 @@ export default function HospitalRegistration() {
       specializations: selectedSpecializations,
       opdDepartments: selectedDepartments,
       hospitalImage: hospitalImage || "",
+      // Combine address fields for legacy compatibility
+      address: `${data.addressLine1}, ${data.addressLine2 ? data.addressLine2 + ', ' : ''}${data.city}, ${data.state} - ${data.pinCode}`,
+      // Convert date string to Date object
+      licenseValidityDate: new Date(data.licenseValidityDate),
     };
 
     createHospitalMutation.mutate(hospitalData);
@@ -318,6 +405,38 @@ export default function HospitalRegistration() {
                       <p className="text-sm text-destructive mt-1">
                         {form.formState.errors.hospitalType.message}
                       </p>
+                    )}
+                  </div>
+
+                  {/* Specializations Selection */}
+                  <div className="md:col-span-2">
+                    <Label>Specializations Offered *</Label>
+                    <p className="text-sm text-gray-600 mb-3">Select the medical specializations your hospital offers (this will auto-populate OPD departments):</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto border rounded p-3">
+                      {SPECIALIZATIONS.map((specialization) => (
+                        <div key={specialization} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={specialization}
+                            checked={selectedSpecializations.includes(specialization)}
+                            onCheckedChange={(checked) => handleSpecializationChange(specialization, checked as boolean)}
+                          />
+                          <Label htmlFor={specialization} className="text-sm cursor-pointer">
+                            {specialization}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Selected Specializations Display */}
+                    {selectedSpecializations.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {selectedSpecializations.map((spec) => (
+                          <Badge key={spec} variant="secondary" className="text-xs">
+                            {spec}
+                            <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => handleSpecializationChange(spec, false)} />
+                          </Badge>
+                        ))}
+                      </div>
                     )}
                   </div>
 
@@ -750,30 +869,75 @@ export default function HospitalRegistration() {
                   <div>
                     <Label>Hospital Registration Certificate</Label>
                     <div className="mt-2">
-                      <Button type="button" variant="outline" size="sm">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => registrationCertRef.current?.click()}
+                      >
                         <FileText className="h-4 w-4 mr-2" />
                         Upload PDF/Image
                       </Button>
+                      <input
+                        type="file"
+                        ref={registrationCertRef}
+                        onChange={handlePdfUpload('registration')}
+                        accept=".pdf,image/*"
+                        className="hidden"
+                      />
+                      {form.watch("registrationCertificate") && (
+                        <Badge variant="secondary" className="ml-2">File uploaded</Badge>
+                      )}
                     </div>
                   </div>
 
                   <div>
                     <Label>License Document</Label>
                     <div className="mt-2">
-                      <Button type="button" variant="outline" size="sm">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => licenseDocRef.current?.click()}
+                      >
                         <FileText className="h-4 w-4 mr-2" />
                         Upload PDF/Image
                       </Button>
+                      <input
+                        type="file"
+                        ref={licenseDocRef}
+                        onChange={handlePdfUpload('license')}
+                        accept=".pdf,image/*"
+                        className="hidden"
+                      />
+                      {form.watch("licenseDocument") && (
+                        <Badge variant="secondary" className="ml-2">File uploaded</Badge>
+                      )}
                     </div>
                   </div>
 
                   <div>
                     <Label>GST Certificate</Label>
                     <div className="mt-2">
-                      <Button type="button" variant="outline" size="sm">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => gstCertRef.current?.click()}
+                      >
                         <FileText className="h-4 w-4 mr-2" />
                         Upload PDF/Image
                       </Button>
+                      <input
+                        type="file"
+                        ref={gstCertRef}
+                        onChange={handlePdfUpload('gst')}
+                        accept=".pdf,image/*"
+                        className="hidden"
+                      />
+                      {form.watch("gstCertificate") && (
+                        <Badge variant="secondary" className="ml-2">File uploaded</Badge>
+                      )}
                     </div>
                   </div>
                 </div>

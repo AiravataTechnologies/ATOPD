@@ -20,6 +20,7 @@ export const hospitalSchema = z.object({
   city: z.string(),
   state: z.string(),
   pinCode: z.string(),
+  address: z.string().optional(), // Combined address for legacy compatibility
   contactNumber: z.string(), // Landline/Mobile
   email: z.string().email(),
   website: z.string().optional(),
@@ -33,7 +34,7 @@ export const hospitalSchema = z.object({
   // Licensing & Accreditation
   licenseNumber: z.string(), // Hospital License Number/Certificate No.
   issuingAuthority: z.string(),
-  licenseValidityDate: z.date(),
+  licenseValidityDate: z.union([z.string(), z.date()]).transform(val => typeof val === 'string' ? new Date(val) : val),
   nabhAccreditation: z.boolean().default(false),
   gstNumber: z.string().optional(),
   
