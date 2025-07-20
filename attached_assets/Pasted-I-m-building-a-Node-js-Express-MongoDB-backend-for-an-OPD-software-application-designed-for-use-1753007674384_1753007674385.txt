@@ -1,0 +1,150 @@
+I’m building a Node.js + Express + MongoDB backend for an OPD software application, designed for use on tablets in hospitals and clinics.
+
+I want to create modular, RESTful APIs for:
+
+🏥 1. Hospital Registration
+When a hospital registers, generate a unique hospital ID (Mongo ObjectId or UUID).
+
+Store the following fields:
+
+name (String) – Hospital Name
+
+address (String)
+
+contactNumber (String)
+
+email (String)
+
+licenseNumber (String)
+
+hospitalType (String) – e.g., General, Multispecialty
+
+numberOfOpdDepartments (Number)
+
+createdAt (Date, auto-filled)
+
+API Endpoint: POST /api/hospitals/register
+
+🏬 2. OPD Department Registration (under hospital)
+OPDs are registered per hospital.
+
+Store the following:
+
+hospitalId (ObjectId, reference to Hospital)
+
+name (String) – OPD Name (e.g., General Medicine, Pediatrics)
+
+roomNumber (String)
+
+timings (String)
+
+operationDays (Array of Strings) – e.g., Mon, Tue, Wed
+
+departmentHead (String, optional)
+
+API Endpoint: POST /api/hospitals/:hospitalId/opds
+
+🩺 3. Doctor Registration (under OPD)
+Doctors are registered under specific OPDs.
+
+Store:
+
+opdId (ObjectId, reference to OPD)
+
+name (String)
+
+email (String)
+
+mobileNumber (String)
+
+specialization (String)
+
+availableTimeSlots (Array of Strings) – e.g., ["10:00–12:00", "16:00–18:00"]
+
+qualification (String)
+
+experienceYears (Number)
+
+doctorLicenseId (String)
+
+createdAt (auto-filled)
+
+API Endpoint: POST /api/opds/:opdId/doctors
+
+🧾 4. Patient Registration (linked to Doctor → OPD → Hospital)
+📄 Patient Form Fields:
+Personal Information:
+
+fullName (String)
+
+gender (String: Male, Female, Other)
+
+dob (Date)
+
+age (Number) – Optional; auto-calculate from DOB if missing
+
+bloodGroup (String)
+
+Contact Details:
+
+mobileNumber (String)
+
+email (String, optional)
+
+address (String)
+
+city (String)
+
+state (String)
+
+pinCode (String)
+
+Medical Details:
+
+weight (Number, kg)
+
+height (Number, cm)
+
+existingConditions (Array of Strings)
+
+allergies (Array of Strings)
+
+medications (Array of Strings)
+
+pastDiseases (Array of Strings)
+
+familyHistory (String, optional)
+
+Visit/Appointment Info:
+
+visitType (String: New, Follow-up)
+
+doctorId (ObjectId, reference to Doctor)
+
+appointmentDate (Date)
+
+symptoms (String)
+
+Emergency Contact:
+
+emergencyContactName (String)
+
+emergencyContactNumber (String)
+
+relationWithPatient (String)
+
+Other Fields:
+
+photo (Base64 string or file path, optional)
+
+patientId (Auto-generated String)
+
+registrationDate (auto-filled)
+
+On registration, derive and store:
+
+opdId (from doctorId)
+
+hospitalId (from opdId)
+
+API Endpoint: POST /api/patients/register
