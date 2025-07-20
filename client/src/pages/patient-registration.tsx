@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { insertPatientSchema, type InsertPatient, type Patient, type Doctor, type Hospital, type Opd } from "@shared/schema";
+import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Plus, User, Phone, Heart, Calendar, PhoneCall, Camera, Eye, Edit } from "lucide-react";
 
@@ -31,17 +32,13 @@ export default function PatientRegistration() {
   const form = useForm<PatientFormData>({
     resolver: zodResolver(
       insertPatientSchema
-        .omit({ existingConditions: true, allergies: true, medications: true, pastDiseases: true })
+        .omit({ existingConditions: true, allergies: true, medications: true, pastDiseases: true, doctorId: true })
         .extend({
-          existingConditions: insertPatientSchema.shape.existingConditions.optional().or(insertPatientSchema.shape.existingConditions.transform(v => typeof v === 'string' ? v : '')),
-          allergies: insertPatientSchema.shape.allergies.optional().or(insertPatientSchema.shape.allergies.transform(v => typeof v === 'string' ? v : '')),
-          medications: insertPatientSchema.shape.medications.optional().or(insertPatientSchema.shape.medications.transform(v => typeof v === 'string' ? v : '')),
-          pastDiseases: insertPatientSchema.shape.pastDiseases.optional().or(insertPatientSchema.shape.pastDiseases.transform(v => typeof v === 'string' ? v : '')),
-        }).partial({
-          existingConditions: true,
-          allergies: true,
-          medications: true,
-          pastDiseases: true,
+          existingConditions: z.string().optional(),
+          allergies: z.string().optional(),
+          medications: z.string().optional(),
+          pastDiseases: z.string().optional(),
+          doctorId: z.string().optional(), // Make doctorId optional for form validation
         })
     ),
     defaultValues: {
@@ -182,6 +179,9 @@ export default function PatientRegistration() {
   };
 
   const onSubmit = (data: PatientFormData) => {
+    console.log("Form data:", data);
+    console.log("Form errors:", form.formState.errors);
+    
     if (!selectedDoctorId) {
       toast({
         title: "Error",
@@ -211,7 +211,18 @@ export default function PatientRegistration() {
         : [],
     };
 
+    console.log("Patient data to submit:", patientData);
     createPatientMutation.mutate(patientData);
+  };
+
+  const onError = (errors: any) => {
+    console.log("Form validation errors:", errors);
+    const firstError = Object.keys(errors)[0];
+    toast({
+      title: "Validation Error",
+      description: `Please check: ${errors[firstError]?.message || firstError}`,
+      variant: "destructive",
+    });
   };
 
   return (
@@ -240,7 +251,7 @@ export default function PatientRegistration() {
             <p className="text-sm text-gray-600">Complete the form to register a new patient</p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-8">
               {/* Personal Information Section */}
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center space-x-2">
@@ -526,7 +537,10 @@ export default function PatientRegistration() {
                     <Select 
                       disabled={!selectedHospitalId} 
                       value={selectedDoctorId || ""} 
-                      onValueChange={setSelectedDoctorId}
+                      onValueChange={(value) => {
+                        setSelectedDoctorId(value);
+                        form.setValue("doctorId", value); // Update form value
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder={selectedHospitalId ? "Choose a doctor" : "Please select a hospital first"} />
