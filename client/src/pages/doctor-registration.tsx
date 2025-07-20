@@ -276,7 +276,7 @@ export default function DoctorRegistration() {
                         </SelectItem>
                       ))}
                       {selectedHospitalId && opds.length === 0 && (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="no-opds" disabled>
                           No OPDs found. Please create OPDs in OPD Management first.
                         </SelectItem>
                       )}
