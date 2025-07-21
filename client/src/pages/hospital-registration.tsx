@@ -1128,6 +1128,109 @@ export default function HospitalRegistration() {
                                 </div>
                               </div>
 
+                              {/* Additional Hospital Details */}
+                              <div className="space-y-4">
+                                <h4 className="font-semibold text-gray-900">Complete Hospital Information</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                  <div>
+                                    <Label className="font-medium">Website:</Label>
+                                    <p>{viewingHospital.website || "Not provided"}</p>
+                                  </div>
+                                  <div>
+                                    <Label className="font-medium">GST Number:</Label>
+                                    <p>{viewingHospital.gstNumber || "Not provided"}</p>
+                                  </div>
+                                  <div>
+                                    <Label className="font-medium">Issuing Authority:</Label>
+                                    <p>{viewingHospital.issuingAuthority || "Not provided"}</p>
+                                  </div>
+                                  <div>
+                                    <Label className="font-medium">License Validity:</Label>
+                                    <p>{viewingHospital.licenseValidityDate ? new Date(viewingHospital.licenseValidityDate).toLocaleDateString() : "Not provided"}</p>
+                                  </div>
+                                  <div>
+                                    <Label className="font-medium">Established Year:</Label>
+                                    <p>{viewingHospital.establishedYear || "Not provided"}</p>
+                                  </div>
+                                  <div>
+                                    <Label className="font-medium">Hospital Image:</Label>
+                                    {viewingHospital.hospitalImage ? (
+                                      <img src={viewingHospital.hospitalImage} alt="Hospital" className="w-20 h-20 object-cover rounded border" />
+                                    ) : (
+                                      <p>No image uploaded</p>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Administrator Details */}
+                                <div>
+                                  <h5 className="font-medium text-gray-900 mb-2">Administrator Details</h5>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                      <Label className="font-medium">Admin Mobile:</Label>
+                                      <p>{viewingHospital.adminMobileNumber || "Not provided"}</p>
+                                    </div>
+                                    <div>
+                                      <Label className="font-medium">Admin Email:</Label>
+                                      <p>{viewingHospital.adminEmailId || "Not provided"}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Documents Section */}
+                                <div>
+                                  <h5 className="font-medium text-gray-900 mb-2">Uploaded Documents</h5>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                    <div className="border p-3 rounded">
+                                      <Label className="font-medium">Registration Certificate:</Label>
+                                      {viewingHospital.registrationCertificate ? (
+                                        <div className="mt-2">
+                                          <a href={viewingHospital.registrationCertificate} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                            View Document
+                                          </a>
+                                        </div>
+                                      ) : (
+                                        <p className="text-gray-500">Not uploaded</p>
+                                      )}
+                                    </div>
+                                    <div className="border p-3 rounded">
+                                      <Label className="font-medium">License Document:</Label>
+                                      {viewingHospital.licenseDocument ? (
+                                        <div className="mt-2">
+                                          <a href={viewingHospital.licenseDocument} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                            View Document
+                                          </a>
+                                        </div>
+                                      ) : (
+                                        <p className="text-gray-500">Not uploaded</p>
+                                      )}
+                                    </div>
+                                    <div className="border p-3 rounded">
+                                      <Label className="font-medium">GST Certificate:</Label>
+                                      {viewingHospital.gstCertificate ? (
+                                        <div className="mt-2">
+                                          <a href={viewingHospital.gstCertificate} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                            View Document
+                                          </a>
+                                        </div>
+                                      ) : (
+                                        <p className="text-gray-500">Not uploaded</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Complete Address */}
+                                <div>
+                                  <h5 className="font-medium text-gray-900 mb-2">Complete Address</h5>
+                                  <div className="bg-gray-50 p-3 rounded">
+                                    <p>{viewingHospital.addressLine1}</p>
+                                    {viewingHospital.addressLine2 && <p>{viewingHospital.addressLine2}</p>}
+                                    <p>{viewingHospital.city}, {viewingHospital.state} - {viewingHospital.pinCode}</p>
+                                  </div>
+                                </div>
+                              </div>
+
                               {viewingHospital.opdDepartments && (
                                 <div>
                                   <Label className="font-medium">OPD Departments:</Label>
@@ -1156,14 +1259,17 @@ export default function HospitalRegistration() {
                             <DialogTitle>Edit Hospital - {editingHospital?.name}</DialogTitle>
                           </DialogHeader>
                           {editingHospital && (
-                            <div className="space-y-4">
-                              <p className="text-sm text-gray-600">
-                                Edit functionality will be available in the next update. For now, you can view all hospital details and contact the administrator for changes.
-                              </p>
-                              <div className="flex justify-end">
-                                <Button onClick={() => setEditingHospital(null)}>Close</Button>
-                              </div>
-                            </div>
+                            <EditHospitalForm 
+                              hospital={editingHospital} 
+                              onSave={(updatedHospital) => {
+                                updateHospitalMutation.mutate({ 
+                                  id: editingHospital._id!, 
+                                  data: updatedHospital 
+                                });
+                              }}
+                              onCancel={() => setEditingHospital(null)}
+                              isLoading={updateHospitalMutation.isPending}
+                            />
                           )}
                         </DialogContent>
                       </Dialog>
@@ -1216,5 +1322,219 @@ export default function HospitalRegistration() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// Edit Hospital Form Component
+function EditHospitalForm({ 
+  hospital, 
+  onSave, 
+  onCancel, 
+  isLoading 
+}: { 
+  hospital: Hospital; 
+  onSave: (data: UpdateHospital) => void; 
+  onCancel: () => void; 
+  isLoading: boolean; 
+}) {
+  const { toast } = useToast();
+  const editForm = useForm<UpdateHospital>({
+    resolver: zodResolver(updateHospitalSchema),
+    defaultValues: {
+      name: hospital.name,
+      registrationNumber: hospital.registrationNumber,
+      hospitalType: hospital.hospitalType,
+      specializations: hospital.specializations || [],
+      addressLine1: hospital.addressLine1,
+      addressLine2: hospital.addressLine2 || "",
+      city: hospital.city,
+      state: hospital.state,
+      pinCode: hospital.pinCode,
+      contactNumber: hospital.contactNumber,
+      email: hospital.email,
+      website: hospital.website || "",
+      adminFullName: hospital.adminFullName,
+      adminDesignation: hospital.adminDesignation,
+      adminMobileNumber: hospital.adminMobileNumber || "",
+      adminEmailId: hospital.adminEmailId || "",
+      licenseNumber: hospital.licenseNumber,
+      issuingAuthority: hospital.issuingAuthority,
+      licenseValidityDate: hospital.licenseValidityDate ? new Date(hospital.licenseValidityDate) : new Date(),
+      nabhAccreditation: hospital.nabhAccreditation || false,
+      gstNumber: hospital.gstNumber || "",
+      totalBeds: hospital.totalBeds,
+      icuBeds: hospital.icuBeds,
+      emergencyServices: hospital.emergencyServices || false,
+      pharmacyInside: hospital.pharmacyInside || false,
+      opdDepartments: hospital.opdDepartments || [],
+      establishedYear: hospital.establishedYear,
+    }
+  });
+
+  const [editSelectedSpecializations, setEditSelectedSpecializations] = useState<string[]>(hospital.specializations || []);
+  const [editSelectedDepartments, setEditSelectedDepartments] = useState<string[]>(hospital.opdDepartments || []);
+
+  const handleEditSpecializationChange = (specialization: string, checked: boolean) => {
+    const currentSpecs = editSelectedSpecializations;
+    let updatedSpecs: string[];
+    
+    if (checked) {
+      updatedSpecs = [...currentSpecs, specialization];
+    } else {
+      updatedSpecs = currentSpecs.filter(s => s !== specialization);
+    }
+    
+    setEditSelectedSpecializations(updatedSpecs);
+    editForm.setValue("specializations", updatedSpecs);
+  };
+
+  const handleEditSubmit = (data: UpdateHospital) => {
+    const updateData = {
+      ...data,
+      specializations: editSelectedSpecializations,
+      opdDepartments: editSelectedDepartments,
+      address: `${data.addressLine1}, ${data.addressLine2 ? data.addressLine2 + ', ' : ''}${data.city}, ${data.state} - ${data.pinCode}`,
+    };
+    onSave(updateData);
+  };
+
+  return (
+    <form onSubmit={editForm.handleSubmit(handleEditSubmit)} className="space-y-6">
+      {/* Basic Information */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Basic Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="edit-name">Hospital Name *</Label>
+            <Input
+              id="edit-name"
+              {...editForm.register("name")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-registrationNumber">Registration Number *</Label>
+            <Input
+              id="edit-registrationNumber"
+              {...editForm.register("registrationNumber")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-hospitalType">Hospital Type *</Label>
+            <Select 
+              value={editForm.watch("hospitalType")} 
+              onValueChange={(value) => editForm.setValue("hospitalType", value as any)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Private">Private</SelectItem>
+                <SelectItem value="Government">Government</SelectItem>
+                <SelectItem value="Trust">Trust</SelectItem>
+                <SelectItem value="Clinic">Clinic</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="edit-contactNumber">Contact Number *</Label>
+            <Input
+              id="edit-contactNumber"
+              {...editForm.register("contactNumber")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-email">Email *</Label>
+            <Input
+              id="edit-email"
+              type="email"
+              {...editForm.register("email")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-website">Website</Label>
+            <Input
+              id="edit-website"
+              {...editForm.register("website")}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Address */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Address Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="edit-addressLine1">Address Line 1 *</Label>
+            <Input
+              id="edit-addressLine1"
+              {...editForm.register("addressLine1")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-addressLine2">Address Line 2</Label>
+            <Input
+              id="edit-addressLine2"
+              {...editForm.register("addressLine2")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-city">City *</Label>
+            <Input
+              id="edit-city"
+              {...editForm.register("city")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-state">State *</Label>
+            <Input
+              id="edit-state"
+              {...editForm.register("state")}
+            />
+          </div>
+          <div>
+            <Label htmlFor="edit-pinCode">Pin Code *</Label>
+            <Input
+              id="edit-pinCode"
+              {...editForm.register("pinCode")}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Specializations */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Specializations</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {SPECIALIZATIONS.map((specialization) => (
+            <div key={specialization} className="flex items-center space-x-2">
+              <Checkbox
+                id={`edit-spec-${specialization}`}
+                checked={editSelectedSpecializations.includes(specialization)}
+                onCheckedChange={(checked) => handleEditSpecializationChange(specialization, checked as boolean)}
+              />
+              <Label htmlFor={`edit-spec-${specialization}`} className="text-sm">
+                {specialization}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Form Actions */}
+      <div className="flex items-center justify-end space-x-4 pt-6 border-t">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button 
+          type="submit" 
+          disabled={isLoading}
+          className="min-w-32"
+        >
+          {isLoading ? "Updating..." : "Update Hospital"}
+        </Button>
+      </div>
+    </form>
   );
 }
