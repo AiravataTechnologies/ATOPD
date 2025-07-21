@@ -34,6 +34,8 @@ This is a full-stack OPD (Outpatient Department) management system designed for 
 - ✓ **Auto-Generated Credentials Display**: Enhanced hospital details to prominently display Hospital ID, Code, Username, and Password in well-structured format
 - ✓ **Document Management**: Added support for viewing uploaded registration certificates, license documents, and GST certificates
 - ✓ **Enhanced Hospital View**: Complete hospital information display including administrator details, facilities, and contact information
+- ✓ **OPD Auto-Population Feature**: Enhanced OPD Management to automatically fetch and populate OPD department names from selected hospital's specialized departments
+- ✓ **Smart OPD Selection**: OPD names are now dynamically loaded from hospital specializations, ensuring consistency between hospital registration and OPD creation
 
 ## Current Status
 The system is fully operational with MongoDB integration and proper workflow logic:

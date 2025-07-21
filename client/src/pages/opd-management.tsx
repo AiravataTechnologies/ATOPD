@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { insertOpdSchema, type InsertOpd, type Opd, type Hospital } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, Building2 } from "lucide-react";
+import { Plus, Building2, Stethoscope } from "lucide-react";
 
 const daysOfWeek = [
   { id: "Mon", label: "Monday" },
@@ -27,7 +28,9 @@ export default function OPDManagement() {
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
+  const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [availableOpdNames, setAvailableOpdNames] = useState<string[]>([]);
 
   const form = useForm<Omit<InsertOpd, "hospitalId" | "operationDays">>({
     resolver: zodResolver(insertOpdSchema.omit({ hospitalId: true, operationDays: true })),
@@ -47,6 +50,15 @@ export default function OPDManagement() {
     queryKey: ["/api/hospitals", selectedHospitalId, "opds"],
     enabled: !!selectedHospitalId,
   });
+
+  // Effect to update available OPD names when hospital is selected
+  useEffect(() => {
+    if (selectedHospital && selectedHospital.specializations) {
+      setAvailableOpdNames(selectedHospital.specializations);
+    } else {
+      setAvailableOpdNames([]);
+    }
+  }, [selectedHospital]);
 
   const createOpdMutation = useMutation({
     mutationFn: async (data: InsertOpd) => {
@@ -127,7 +139,11 @@ export default function OPDManagement() {
             <CardTitle>Select Hospital</CardTitle>
           </CardHeader>
           <CardContent>
-            <Select onValueChange={(value) => setSelectedHospitalId(value)}>
+            <Select onValueChange={(value) => {
+              setSelectedHospitalId(value);
+              const hospital = hospitals?.find(h => h._id === value);
+              setSelectedHospital(hospital || null);
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="Choose a hospital" />
               </SelectTrigger>
@@ -139,6 +155,29 @@ export default function OPDManagement() {
                 ))}
               </SelectContent>
             </Select>
+            
+            {selectedHospital && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                <h4 className="font-medium text-blue-900 mb-2 flex items-center">
+                  <Stethoscope className="h-4 w-4 mr-2" />
+                  Available OPD Specializations
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {availableOpdNames.length > 0 ? (
+                    availableOpdNames.map((spec, index) => (
+                      <Badge key={index} variant="secondary" className="text-xs">
+                        {spec}
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-sm text-blue-700">No specializations found for this hospital</p>
+                  )}
+                </div>
+                <p className="text-xs text-blue-700 mt-2">
+                  These are the specializations from hospital registration. Select one below to create an OPD department.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -156,14 +195,35 @@ export default function OPDManagement() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <Label htmlFor="name">OPD Name *</Label>
-                      <Input
-                        id="name"
-                        {...form.register("name")}
-                        placeholder="e.g., General Medicine, Cardiology"
-                      />
+                      {availableOpdNames.length > 0 ? (
+                        <Select onValueChange={(value) => form.setValue("name", value)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select from hospital specializations" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableOpdNames.map((name) => (
+                              <SelectItem key={name} value={name}>
+                                {name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          id="name"
+                          {...form.register("name")}
+                          placeholder="Please select a hospital first"
+                          disabled={!selectedHospitalId}
+                        />
+                      )}
                       {form.formState.errors.name && (
                         <p className="text-sm text-destructive mt-1">
                           {form.formState.errors.name.message}
+                        </p>
+                      )}
+                      {availableOpdNames.length > 0 && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          OPD names are automatically loaded from {selectedHospital?.name}'s specializations
                         </p>
                       )}
                     </div>
