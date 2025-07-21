@@ -118,6 +118,7 @@ export const doctorSchema = z.object({
   qualification: z.string(),
   experienceYears: z.number(),
   doctorLicenseId: z.string(),
+  doctorImage: z.string().optional(), // Base64 encoded image
   createdAt: z.date().default(() => new Date()),
 });
 
@@ -206,6 +207,12 @@ export const insertDoctorSchema = doctorSchema.omit({
   createdAt: true,
 });
 
+export const updateDoctorSchema = doctorSchema.omit({
+  _id: true,
+  opdId: true,
+  createdAt: true,
+}).partial();
+
 export const insertPatientSchema = patientSchema.omit({
   _id: true,
   patientId: true,
@@ -231,6 +238,7 @@ export type InsertOpd = z.infer<typeof insertOpdSchema>;
 
 export type Doctor = z.infer<typeof doctorSchema>;
 export type InsertDoctor = z.infer<typeof insertDoctorSchema>;
+export type UpdateDoctor = z.infer<typeof updateDoctorSchema>;
 
 export type Patient = z.infer<typeof patientSchema>;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;

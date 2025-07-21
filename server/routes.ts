@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertHospitalSchema, updateHospitalSchema, insertOpdSchema, insertDoctorSchema, insertPatientSchema } from "@shared/schema";
+import { insertHospitalSchema, updateHospitalSchema, insertOpdSchema, insertDoctorSchema, updateDoctorSchema, insertPatientSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -169,6 +169,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(doctors);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch doctors", error: (error as Error).message });
+    }
+  });
+
+  app.put("/api/doctors/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const doctorData = updateDoctorSchema.parse(req.body);
+      const doctor = await storage.updateDoctor(id, doctorData);
+      if (!doctor) {
+        return res.status(404).json({ message: "Doctor not found" });
+      }
+      res.json(doctor);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update doctor", error: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/doctors/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const success = await storage.deleteDoctor(id);
+      if (!success) {
+        return res.status(404).json({ message: "Doctor not found" });
+      }
+      res.json({ message: "Doctor deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete doctor", error: (error as Error).message });
     }
   });
 

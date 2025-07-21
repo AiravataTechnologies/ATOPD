@@ -98,6 +98,7 @@ export type Doctor = {
   qualification: string;
   experienceYears: number;
   doctorLicenseId: string;
+  doctorImage?: string;
   createdAt: Date;
 };
 
@@ -111,6 +112,19 @@ export type InsertDoctor = {
   qualification: string;
   experienceYears: number;
   doctorLicenseId: string;
+  doctorImage?: string;
+};
+
+export type UpdateDoctor = {
+  name?: string;
+  email?: string;
+  mobileNumber?: string;
+  specialization?: string;
+  availableTimeSlots?: string[];
+  qualification?: string;
+  experienceYears?: number;
+  doctorLicenseId?: string;
+  doctorImage?: string;
 };
 
 export type Patient = {
@@ -202,6 +216,8 @@ export interface IStorage {
   // Doctor methods
   createDoctor(doctor: InsertDoctor): Promise<Doctor>;
   getDoctor(id: string): Promise<Doctor | undefined>;
+  updateDoctor(id: string, doctor: UpdateDoctor): Promise<Doctor | undefined>;
+  deleteDoctor(id: string): Promise<boolean>;
   getDoctorsByOPD(opdId: string): Promise<Doctor[]>;
   getAllDoctors(): Promise<Doctor[]>;
 
@@ -403,6 +419,22 @@ export class DatabaseStorage implements IStorage {
     const db = await this.getDb();
     const doctors = await db.collection("doctors").find({}).sort({ createdAt: -1 }).toArray();
     return doctors.map(d => convertToTypedDocument<Doctor>(d));
+  }
+
+  async updateDoctor(id: string, doctor: UpdateDoctor): Promise<Doctor | undefined> {
+    const db = await this.getDb();
+    const result = await db.collection("doctors").findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: doctor },
+      { returnDocument: 'after' }
+    );
+    return result ? convertToTypedDocument<Doctor>(result) : undefined;
+  }
+
+  async deleteDoctor(id: string): Promise<boolean> {
+    const db = await this.getDb();
+    const result = await db.collection("doctors").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
   }
 
   // Patient methods
