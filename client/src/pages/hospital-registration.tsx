@@ -64,7 +64,7 @@ export default function HospitalRegistration() {
       // Licensing & Accreditation
       licenseNumber: "",
       issuingAuthority: "",
-      licenseValidityDate: new Date().toISOString().split('T')[0],
+      licenseValidityDate: new Date(),
       nabhAccreditation: false,
       gstNumber: "",
       
@@ -106,14 +106,15 @@ export default function HospitalRegistration() {
       const response = await apiRequest("POST", "/api/hospitals/register", data);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (hospital) => {
       queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
       toast({
-        title: "Success",
-        description: "Hospital registered successfully",
+        title: "Hospital Registered Successfully!",
+        description: `Hospital ID: ${hospital.hospitalId} | Code: ${hospital.hospitalCode} | Username: ${hospital.username} | Password: ${hospital.password}`,
       });
       form.reset();
       setSelectedDepartments([]);
+      setSelectedSpecializations([]);
       setCustomDepartment("");
       setHospitalImage(null);
       setShowForm(false);
@@ -160,7 +161,8 @@ export default function HospitalRegistration() {
       .filter(Boolean);
     
     // Combine auto-populated departments with manually selected ones
-    const allDepartments = [...new Set([...selectedDepartments, ...autoOpdDepartments])];
+    const combinedDepartments = [...selectedDepartments, ...autoOpdDepartments];
+    const allDepartments = Array.from(new Set(combinedDepartments));
     setSelectedDepartments(allDepartments);
     form.setValue("opdDepartments", allDepartments);
   };
@@ -169,10 +171,10 @@ export default function HospitalRegistration() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 500 * 1024) { // 500KB limit
         toast({
           title: "Error",
-          description: "Image size must be less than 5MB",
+          description: "Image size must be less than 500KB",
           variant: "destructive",
         });
         return;
@@ -193,10 +195,10 @@ export default function HospitalRegistration() {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) {
-        if (file.size > 10 * 1024 * 1024) { // 10MB limit for PDFs
+        if (file.size > 500 * 1024) { // 500KB limit for PDFs
           toast({
             title: "Error",
-            description: "File size must be less than 10MB",
+            description: "File size must be less than 500KB",
             variant: "destructive",
           });
           return;
@@ -292,6 +294,9 @@ export default function HospitalRegistration() {
       address: `${data.addressLine1}, ${data.addressLine2 ? data.addressLine2 + ', ' : ''}${data.city}, ${data.state} - ${data.pinCode}`,
       // Convert date string to Date object
       licenseValidityDate: new Date(data.licenseValidityDate),
+      // Remove manual username/password as they will be auto-generated
+      username: "",
+      password: "",
     };
 
     createHospitalMutation.mutate(hospitalData);
@@ -350,7 +355,7 @@ export default function HospitalRegistration() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-8">
               
               {/* Section 1: Basic Information */}
               <div className="space-y-4">
@@ -438,34 +443,6 @@ export default function HospitalRegistration() {
                         ))}
                       </div>
                     )}
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <Label>Specializations Offered *</Label>
-                    <div className="mt-2 space-y-2">
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded">
-                        {SPECIALIZATIONS.map((spec) => (
-                          <div key={spec} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={spec}
-                              checked={selectedSpecializations.includes(spec)}
-                              onCheckedChange={() => toggleSpecialization(spec)}
-                            />
-                            <Label htmlFor={spec} className="text-sm cursor-pointer">{spec}</Label>
-                          </div>
-                        ))}
-                      </div>
-                      {selectedSpecializations.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {selectedSpecializations.map((spec) => (
-                            <Badge key={spec} variant="secondary" className="text-xs">
-                              {spec}
-                              <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => removeSpecialization(spec)} />
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -688,7 +665,9 @@ export default function HospitalRegistration() {
                     <Input
                       id="licenseValidityDate"
                       type="date"
-                      {...form.register("licenseValidityDate")}
+                      {...form.register("licenseValidityDate", { 
+                        setValueAs: (value) => value ? new Date(value) : new Date()
+                      })}
                     />
                     {form.formState.errors.licenseValidityDate && (
                       <p className="text-sm text-destructive mt-1">
@@ -779,35 +758,15 @@ export default function HospitalRegistration() {
                   <Users className="h-5 w-5 text-primary" />
                   <h3 className="text-lg font-semibold">6. Login & Access Setup</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="username">Username / Hospital Code</Label>
-                    <Input
-                      id="username"
-                      {...form.register("username")}
-                      placeholder="Auto-generated or manual"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      {...form.register("password")}
-                      placeholder="Enter password"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="userRole">User Role</Label>
-                    <Input
-                      id="userRole"
-                      {...form.register("userRole")}
-                      value="Hospital Admin"
-                      disabled
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Hospital credentials will be automatically generated upon registration:
+                  </p>
+                  <ul className="text-sm text-gray-600 list-disc list-inside">
+                    <li>Username: Based on hospital code (e.g., ath_mh_001)</li>
+                    <li>Password: Auto-generated secure password</li>
+                    <li>Role: Hospital Admin</li>
+                  </ul>
                 </div>
               </div>
 
@@ -943,58 +902,43 @@ export default function HospitalRegistration() {
                 </div>
               </div>
 
-              {/* OPD Department Selection Section */}
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2 pb-2 border-b">
-                  <Building2 className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold">OPD Departments</h3>
-                </div>
+              {/* Auto-populated OPD Department Display */}
+              {selectedDepartments.length > 0 && (
                 <div className="space-y-4">
-                  <div>
-                    <Label>Select OPD Departments *</Label>
-                    <p className="text-sm text-gray-600 mb-3">Choose the OPD departments your hospital offers:</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {OPD_DEPARTMENTS.map((dept) => (
-                        <div key={dept} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={dept}
-                            checked={selectedDepartments.includes(dept)}
-                            onCheckedChange={() => toggleDepartment(dept)}
-                          />
-                          <Label htmlFor={dept} className="text-sm cursor-pointer">
-                            {dept}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Custom Department Input */}
-                    <div className="mt-4 flex items-center space-x-2">
-                      <Input
-                        value={customDepartment}
-                        onChange={(e) => setCustomDepartment(e.target.value)}
-                        placeholder="Add custom department"
-                        className="flex-1"
-                      />
-                      <Button type="button" onClick={addCustomDepartment} size="sm">
-                        Add
-                      </Button>
-                    </div>
-
-                    {/* Selected Departments Display */}
-                    {selectedDepartments.length > 0 && (
+                  <div className="flex items-center space-x-2 pb-2 border-b">
+                    <Building2 className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Auto-populated OPD Departments</h3>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>OPD Departments (Based on Specializations)</Label>
+                      <p className="text-sm text-gray-600 mb-3">These departments are automatically created based on your selected specializations:</p>
+                      
+                      {/* Selected Departments Display */}
                       <div className="flex flex-wrap gap-1 mt-2">
                         {selectedDepartments.map((dept) => (
                           <Badge key={dept} variant="secondary" className="text-xs">
                             {dept}
-                            <X className="h-3 w-3 ml-1 cursor-pointer" onClick={() => removeDepartment(dept)} />
                           </Badge>
                         ))}
                       </div>
-                    )}
+                      
+                      {/* Custom Department Input */}
+                      <div className="mt-4 flex items-center space-x-2">
+                        <Input
+                          value={customDepartment}
+                          onChange={(e) => setCustomDepartment(e.target.value)}
+                          placeholder="Add custom department"
+                          className="flex-1"
+                        />
+                        <Button type="button" onClick={addCustomDepartment} size="sm">
+                          Add
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Form Buttons */}
               <div className="flex items-center justify-end space-x-4 pt-6 border-t">

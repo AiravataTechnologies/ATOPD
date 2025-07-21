@@ -276,12 +276,18 @@ export class DatabaseStorage implements IStorage {
   async createHospital(hospital: InsertHospital): Promise<Hospital> {
     const db = await this.getDb();
     const hospitalId = await this.generateHospitalId();
-    const hospitalCode = await this.generateHospitalCode(hospital.name, hospital.address.split(',').pop()?.trim() || 'XX');
+    const hospitalCode = await this.generateHospitalCode(hospital.name, (hospital as any).state || 'XX');
+    
+    // Generate unique username and password
+    const username = hospitalCode.toLowerCase();
+    const password = this.generatePassword();
     
     const hospitalData = {
       ...hospital,
       hospitalId,
       hospitalCode,
+      username,
+      password,
       emergencyServices: hospital.emergencyServices || false,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -289,6 +295,16 @@ export class DatabaseStorage implements IStorage {
     const result = await db.collection("hospitals").insertOne(hospitalData);
     const newHospital = await db.collection("hospitals").findOne({ _id: result.insertedId });
     return convertToTypedDocument<Hospital>(newHospital!);
+  }
+
+  private generatePassword(): string {
+    // Generate a secure 8-character password with mixed case, numbers, and symbols
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
   }
 
   async updateHospital(id: string, hospital: UpdateHospital): Promise<Hospital | undefined> {

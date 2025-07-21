@@ -8,8 +8,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Hospital routes
   app.post("/api/hospitals/register", async (req, res) => {
     try {
-      const hospitalData = insertHospitalSchema.parse(req.body);
-      const hospital = await storage.createHospital(hospitalData);
+      const parsedData = insertHospitalSchema.parse(req.body);
+      // Ensure address field is present for storage interface compatibility
+      const hospitalData = {
+        ...parsedData,
+        address: parsedData.address || `${parsedData.addressLine1}, ${parsedData.addressLine2 || ''} ${parsedData.city}, ${parsedData.state} - ${parsedData.pinCode}`.replace(/,\s*,/g, ',').trim()
+      };
+      const hospital = await storage.createHospital(hospitalData as any);
       res.status(201).json(hospital);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -44,8 +49,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/hospitals/:id", async (req, res) => {
     try {
       const id = req.params.id;
-      const hospitalData = updateHospitalSchema.parse(req.body);
-      const hospital = await storage.updateHospital(id, hospitalData);
+      const parsedData = updateHospitalSchema.parse(req.body);
+      // Ensure address field is present for storage interface compatibility
+      const hospitalData = {
+        ...parsedData,
+        address: parsedData.address || `${parsedData.addressLine1}, ${parsedData.addressLine2 || ''} ${parsedData.city}, ${parsedData.state} - ${parsedData.pinCode}`.replace(/,\s*,/g, ',').trim()
+      };
+      const hospital = await storage.updateHospital(id, hospitalData as any);
       if (!hospital) {
         return res.status(404).json({ message: "Hospital not found" });
       }
