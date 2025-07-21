@@ -128,6 +128,49 @@ export default function HospitalRegistration() {
     },
   });
 
+  const updateHospitalMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateHospital }) => {
+      const response = await apiRequest("PUT", `/api/hospitals/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
+      toast({
+        title: "Success",
+        description: "Hospital updated successfully",
+      });
+      setEditingHospital(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteHospitalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/hospitals/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
+      toast({
+        title: "Success",
+        description: "Hospital deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Handle specialization change and auto-populate OPD departments
   const handleSpecializationChange = (specialization: string, checked: boolean) => {
     const currentSpecializations = form.getValues("specializations") || [];
@@ -230,50 +273,7 @@ export default function HospitalRegistration() {
     };
   };
 
-  // Update hospital mutation
-  const updateHospitalMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateHospital }) => {
-      const response = await apiRequest("PUT", `/api/hospitals/${id}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
-      toast({
-        title: "Success",
-        description: "Hospital updated successfully",
-      });
-      setEditingHospital(null);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
-  // Delete hospital mutation
-  const deleteHospitalMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/hospitals/${id}`);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/hospitals"] });
-      toast({
-        title: "Success",
-        description: "Hospital deleted successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   const onSubmit = (data: InsertHospital) => {
     if (selectedSpecializations.length === 0) {
@@ -292,8 +292,8 @@ export default function HospitalRegistration() {
       hospitalImage: hospitalImage || "",
       // Combine address fields for legacy compatibility
       address: `${data.addressLine1}, ${data.addressLine2 ? data.addressLine2 + ', ' : ''}${data.city}, ${data.state} - ${data.pinCode}`,
-      // Convert date string to Date object
-      licenseValidityDate: new Date(data.licenseValidityDate),
+      // Keep date as-is since it's already a Date object
+      licenseValidityDate: data.licenseValidityDate,
       // Remove manual username/password as they will be auto-generated
       username: "",
       password: "",
@@ -1101,6 +1101,33 @@ export default function HospitalRegistration() {
                                 </div>
                               </div>
 
+                              {/* Login Credentials Section */}
+                              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-500">
+                                <h4 className="font-semibold text-blue-900 mb-3">🔐 Hospital Login Credentials</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                  <div className="bg-white p-3 rounded border">
+                                    <Label className="font-medium text-blue-700">Hospital ID:</Label>
+                                    <p className="font-mono text-blue-900">{viewingHospital.hospitalId || "Not available"}</p>
+                                  </div>
+                                  <div className="bg-white p-3 rounded border">
+                                    <Label className="font-medium text-blue-700">Hospital Code:</Label>
+                                    <p className="font-mono text-blue-900">{viewingHospital.hospitalCode || "Not available"}</p>
+                                  </div>
+                                  <div className="bg-white p-3 rounded border">
+                                    <Label className="font-medium text-blue-700">Username:</Label>
+                                    <p className="font-mono text-blue-900">{viewingHospital.username || "Not available"}</p>
+                                  </div>
+                                  <div className="bg-white p-3 rounded border md:col-span-2">
+                                    <Label className="font-medium text-blue-700">Password:</Label>
+                                    <p className="font-mono text-blue-900">{viewingHospital.password || "Not available"}</p>
+                                  </div>
+                                  <div className="bg-white p-3 rounded border">
+                                    <Label className="font-medium text-blue-700">Role:</Label>
+                                    <p className="font-mono text-blue-900">Hospital Admin</p>
+                                  </div>
+                                </div>
+                              </div>
+
                               {viewingHospital.opdDepartments && (
                                 <div>
                                   <Label className="font-medium">OPD Departments:</Label>
@@ -1118,9 +1145,28 @@ export default function HospitalRegistration() {
                         </DialogContent>
                       </Dialog>
 
-                      <Button variant="outline" size="sm" onClick={() => setEditingHospital(hospital)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Dialog open={editingHospital?._id === hospital._id} onOpenChange={(open) => !open && setEditingHospital(null)}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => setEditingHospital(hospital)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>Edit Hospital - {editingHospital?.name}</DialogTitle>
+                          </DialogHeader>
+                          {editingHospital && (
+                            <div className="space-y-4">
+                              <p className="text-sm text-gray-600">
+                                Edit functionality will be available in the next update. For now, you can view all hospital details and contact the administrator for changes.
+                              </p>
+                              <div className="flex justify-end">
+                                <Button onClick={() => setEditingHospital(null)}>Close</Button>
+                              </div>
+                            </div>
+                          )}
+                        </DialogContent>
+                      </Dialog>
 
                       <Dialog>
                         <DialogTrigger asChild>

@@ -4,8 +4,9 @@ import { setupVite, serveStatic, log } from "./vite";
 import { connectToDatabase } from "./db";
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Increase payload size limits for file uploads (10MB)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
