@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertHospitalSchema, updateHospitalSchema, insertOpdSchema, insertDoctorSchema, updateDoctorSchema, insertPatientSchema } from "@shared/schema";
+import { insertHospitalSchema, updateHospitalSchema, insertOpdSchema, insertDoctorSchema, updateDoctorSchema, insertPatientSchema, updatePatientSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -266,6 +266,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(patient);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch patient", error: (error as Error).message });
+    }
+  });
+
+  app.put("/api/patients/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const processedBody = { ...req.body };
+      
+      // Handle array fields
+      ['existingConditions', 'allergies', 'medications', 'pastDiseases'].forEach(field => {
+        if (processedBody[field] && typeof processedBody[field] === 'string') {
+          processedBody[field] = processedBody[field]
+            .split(',')
+            .map((item: string) => item.trim())
+            .filter((item: string) => item.length > 0);
+        }
+      });
+
+      // Handle date fields
+      if (processedBody.dob) {
+        processedBody.dob = new Date(processedBody.dob);
+      }
+      if (processedBody.appointmentDate) {
+        processedBody.appointmentDate = new Date(processedBody.appointmentDate);
+      }
+
+      const patientData = updatePatientSchema.parse(processedBody);
+      const patient = await storage.updatePatient(id, patientData);
+      if (!patient) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+      res.json(patient);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update patient", error: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/patients/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const success = await storage.deletePatient(id);
+      if (!success) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+      res.json({ message: "Patient deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete patient", error: (error as Error).message });
     }
   });
 

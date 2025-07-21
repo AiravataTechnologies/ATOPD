@@ -190,6 +190,8 @@ export type InsertPatient = {
   photo?: string;
 };
 
+export type UpdatePatient = Partial<InsertPatient>;
+
 // Storage interface
 export interface IStorage {
   // User methods
@@ -224,6 +226,8 @@ export interface IStorage {
   // Patient methods  
   createPatient(patient: InsertPatient): Promise<Patient>;
   getPatient(id: string): Promise<Patient | undefined>;
+  updatePatient(id: string, patient: UpdatePatient): Promise<Patient | undefined>;
+  deletePatient(id: string): Promise<boolean>;
   getAllPatients(): Promise<Patient[]>;
   getRecentPatients(limit: number): Promise<Patient[]>;
   getPatientsByDoctor(doctorId: string): Promise<Patient[]>;
@@ -502,6 +506,22 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .toArray();
     return patients.map(p => convertToTypedDocument<Patient>(p));
+  }
+
+  async updatePatient(id: string, patient: UpdatePatient): Promise<Patient | undefined> {
+    const db = await this.getDb();
+    const result = await db.collection("patients").findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: patient },
+      { returnDocument: 'after' }
+    );
+    return result ? convertToTypedDocument<Patient>(result) : undefined;
+  }
+
+  async deletePatient(id: string): Promise<boolean> {
+    const db = await this.getDb();
+    const result = await db.collection("patients").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
   }
 
   async getPatientsByDoctor(doctorId: string): Promise<Patient[]> {

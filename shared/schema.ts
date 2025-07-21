@@ -217,12 +217,13 @@ export const insertPatientSchema = patientSchema.omit({
   _id: true,
   patientId: true,
   registrationDate: true,
-  opdId: true,
-  hospitalId: true,
-}).extend({
-  dob: z.coerce.date(),
-  appointmentDate: z.coerce.date(),
 });
+
+export const updatePatientSchema = patientSchema.omit({
+  _id: true,
+  patientId: true,
+  registrationDate: true,
+}).partial();
 
 export const insertUserSchema = userSchema.omit({
   _id: true,
@@ -242,6 +243,7 @@ export type UpdateDoctor = z.infer<typeof updateDoctorSchema>;
 
 export type Patient = z.infer<typeof patientSchema>;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
+export type UpdatePatient = z.infer<typeof updatePatientSchema>;
 
 export type User = z.infer<typeof userSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
