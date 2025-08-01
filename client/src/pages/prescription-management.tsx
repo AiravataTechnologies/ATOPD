@@ -32,6 +32,7 @@ export default function PrescriptionManagement() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [viewingPrescription, setViewingPrescription] = useState<Prescription | null>(null);
+  const [editingPrescription, setEditingPrescription] = useState<Prescription | null>(null);
   const canvasRef = useRef<CanvasRef>(null);
 
   const form = useForm<PrescriptionFormData>({
@@ -114,6 +115,32 @@ export default function PrescriptionManagement() {
     },
   });
 
+  const updatePrescriptionMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertPrescription> }) => {
+      const response = await apiRequest("PUT", `/api/prescriptions/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/prescriptions"] });
+      toast({
+        title: "Success",
+        description: "Prescription updated successfully",
+      });
+      form.reset();
+      setSelectedPatient(null);
+      setSelectedDoctor(null);
+      setEditingPrescription(null);
+      setShowForm(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: PrescriptionFormData) => {
     if (!selectedPatient || !selectedDoctor) {
       toast({
@@ -168,7 +195,14 @@ export default function PrescriptionManagement() {
       },
     };
 
-    createPrescriptionMutation.mutate(prescriptionData);
+    if (editingPrescription) {
+      updatePrescriptionMutation.mutate({
+        id: editingPrescription._id!,
+        data: prescriptionData
+      });
+    } else {
+      createPrescriptionMutation.mutate(prescriptionData);
+    }
   };
 
   const getPatientName = (patientId: string) => {
@@ -205,7 +239,7 @@ export default function PrescriptionManagement() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Stethoscope className="h-5 w-5" />
-              New Prescription
+              {editingPrescription ? "Edit Prescription" : "New Prescription"}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -214,11 +248,14 @@ export default function PrescriptionManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <Label>Select Patient *</Label>
-                  <Select onValueChange={(value) => {
-                    const patient = patients.find(p => p._id === value);
-                    setSelectedPatient(patient || null);
-                    form.setValue("patientId", value);
-                  }}>
+                  <Select 
+                    onValueChange={(value) => {
+                      const patient = patients.find(p => p._id === value);
+                      setSelectedPatient(patient || null);
+                      form.setValue("patientId", value);
+                    }}
+                    value={selectedPatient?._id || ""}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Choose Patient" />
                     </SelectTrigger>
@@ -233,11 +270,14 @@ export default function PrescriptionManagement() {
                 </div>
                 <div>
                   <Label>Select Doctor *</Label>
-                  <Select onValueChange={(value) => {
-                    const doctor = doctors.find(d => d._id === value);
-                    setSelectedDoctor(doctor || null);
-                    form.setValue("doctorId", value);
-                  }}>
+                  <Select 
+                    onValueChange={(value) => {
+                      const doctor = doctors.find(d => d._id === value);
+                      setSelectedDoctor(doctor || null);
+                      form.setValue("doctorId", value);
+                    }}
+                    value={selectedDoctor?._id || ""}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Choose Doctor" />
                     </SelectTrigger>
@@ -401,12 +441,19 @@ export default function PrescriptionManagement() {
               </div>
 
               <div className="flex justify-end space-x-3">
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                <Button type="button" variant="outline" onClick={() => {
+                  setShowForm(false);
+                  setEditingPrescription(null);
+                  form.reset();
+                }}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createPrescriptionMutation.isPending}>
+                <Button type="submit" disabled={createPrescriptionMutation.isPending || updatePrescriptionMutation.isPending}>
                   <Save className="h-4 w-4 mr-2" />
-                  {createPrescriptionMutation.isPending ? "Creating..." : "Create Prescription"}
+                  {editingPrescription 
+                    ? (updatePrescriptionMutation.isPending ? "Updating..." : "Update Prescription")
+                    : (createPrescriptionMutation.isPending ? "Creating..." : "Create Prescription")
+                  }
                 </Button>
               </div>
             </form>
@@ -454,57 +501,165 @@ export default function PrescriptionManagement() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogContent className="max-w-4xl max-h-[90vh]">
                           <DialogHeader>
                             <DialogTitle>Prescription Details - {prescription.prescriptionId}</DialogTitle>
                           </DialogHeader>
-                          {viewingPrescription && (
-                            <div className="space-y-6">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <h4 className="font-medium mb-2">Patient Information</h4>
-                                  <p className="text-sm">{getPatientName(viewingPrescription.patientId)}</p>
-                                </div>
-                                <div>
-                                  <h4 className="font-medium mb-2">Doctor Information</h4>
-                                  <p className="text-sm">{getDoctorName(viewingPrescription.doctorId)}</p>
-                                </div>
-                              </div>
-                              
-                              {viewingPrescription.prescriptionCanvas && (
-                                <div>
-                                  <h4 className="font-medium mb-2">Digital Prescription</h4>
-                                  <img 
-                                    src={viewingPrescription.prescriptionCanvas} 
-                                    alt="Prescription Canvas"
-                                    className="border rounded max-w-full h-auto"
-                                  />
-                                </div>
-                              )}
-                              
-                              {viewingPrescription.medications.length > 0 && (
-                                <div>
-                                  <h4 className="font-medium mb-2">Medications</h4>
-                                  <div className="space-y-2">
-                                    {viewingPrescription.medications.map((med, index) => (
-                                      <div key={index} className="border rounded p-2">
-                                        <p className="font-medium">{med.medicineName}</p>
-                                        <p className="text-sm text-gray-600">
-                                          {med.dosage} • {med.frequency} • {med.duration}
-                                        </p>
-                                        {med.instructions && (
-                                          <p className="text-sm text-gray-500">{med.instructions}</p>
-                                        )}
-                                      </div>
-                                    ))}
+                          <div className="max-h-[70vh] overflow-y-auto">
+                            {viewingPrescription && (
+                              <div className="space-y-6 pr-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <h4 className="font-medium mb-2">Patient Information</h4>
+                                    <p className="text-sm">{getPatientName(viewingPrescription.patientId)}</p>
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium mb-2">Doctor Information</h4>
+                                    <p className="text-sm">{getDoctorName(viewingPrescription.doctorId)}</p>
                                   </div>
                                 </div>
-                              )}
-                            </div>
-                          )}
+                                
+                                <div>
+                                  <h4 className="font-medium mb-2">Visit Details</h4>
+                                  <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>Visit Date: {new Date(viewingPrescription.visitDate).toLocaleDateString()}</div>
+                                    <div>Visit Type: {viewingPrescription.visitType}</div>
+                                    <div>Status: {viewingPrescription.status}</div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <h4 className="font-medium mb-2">Chief Complaint</h4>
+                                  <p className="text-sm bg-gray-50 p-3 rounded">{viewingPrescription.chiefComplaint}</p>
+                                </div>
+
+                                {viewingPrescription.symptoms && viewingPrescription.symptoms.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Symptoms</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {viewingPrescription.symptoms.map((symptom, index) => (
+                                        <Badge key={index} variant="secondary">{symptom}</Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {viewingPrescription.diagnosis && viewingPrescription.diagnosis.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Diagnosis</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      {viewingPrescription.diagnosis.map((diag, index) => (
+                                        <Badge key={index} variant="default">{diag}</Badge>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {viewingPrescription.clinicalNotes && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Clinical Notes</h4>
+                                    <p className="text-sm bg-blue-50 p-3 rounded">{viewingPrescription.clinicalNotes}</p>
+                                  </div>
+                                )}
+                                
+                                {viewingPrescription.medications.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Medications</h4>
+                                    <div className="space-y-2">
+                                      {viewingPrescription.medications.map((med, index) => (
+                                        <div key={index} className="border rounded p-3">
+                                          <p className="font-medium">{med.medicineName}</p>
+                                          <p className="text-sm text-gray-600">
+                                            {med.dosage} • {med.frequency} • {med.duration}
+                                          </p>
+                                          {med.instructions && (
+                                            <p className="text-sm text-gray-500 mt-1">{med.instructions}</p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {viewingPrescription.labTests && viewingPrescription.labTests.length > 0 && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Lab Tests</h4>
+                                    <div className="space-y-2">
+                                      {viewingPrescription.labTests.map((test, index) => (
+                                        <div key={index} className="border rounded p-3 bg-amber-50">
+                                          <p className="font-medium">{test.testName}</p>
+                                          <p className="text-sm text-gray-600">{test.instructions}</p>
+                                          <Badge variant="outline" className="mt-1">{test.urgency}</Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {viewingPrescription.prescriptionCanvas && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Digital Prescription</h4>
+                                    <img 
+                                      src={viewingPrescription.prescriptionCanvas} 
+                                      alt="Prescription Canvas"
+                                      className="border rounded max-w-full h-auto"
+                                    />
+                                  </div>
+                                )}
+
+                                {viewingPrescription.followUpInstructions && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Follow-up Instructions</h4>
+                                    <p className="text-sm bg-green-50 p-3 rounded">{viewingPrescription.followUpInstructions}</p>
+                                  </div>
+                                )}
+
+                                {viewingPrescription.followUpDate && (
+                                  <div>
+                                    <h4 className="font-medium mb-2">Follow-up Date</h4>
+                                    <p className="text-sm">{new Date(viewingPrescription.followUpDate).toLocaleDateString()}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </DialogContent>
                       </Dialog>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setEditingPrescription(prescription);
+                          
+                          // Pre-populate form with existing data
+                          const patient = patients.find(p => p._id === prescription.patientId);
+                          const doctor = doctors.find(d => d._id === prescription.doctorId);
+                          
+                          if (patient) setSelectedPatient(patient);
+                          if (doctor) setSelectedDoctor(doctor);
+                          
+                          form.reset({
+                            patientId: prescription.patientId,
+                            doctorId: prescription.doctorId,
+                            hospitalId: prescription.hospitalId,
+                            opdId: prescription.opdId,
+                            visitDate: new Date(prescription.visitDate).toISOString().slice(0, 16),
+                            followUpDate: prescription.followUpDate ? new Date(prescription.followUpDate).toISOString().slice(0, 16) : "",
+                            visitType: prescription.visitType,
+                            chiefComplaint: prescription.chiefComplaint,
+                            symptoms: prescription.symptoms?.join(", ") || "",
+                            diagnosis: prescription.diagnosis?.join(", ") || "",
+                            clinicalNotes: prescription.clinicalNotes || "",
+                            medications: prescription.medications?.map(m => `${m.medicineName}|${m.dosage}|${m.frequency}|${m.duration}|${m.instructions || ''}`).join(", ") || "",
+                            prescriptionText: prescription.prescriptionText || "",
+                            labTests: prescription.labTests?.map(t => `${t.testName}|${t.instructions}|${t.urgency}`).join(", ") || "",
+                            followUpInstructions: prescription.followUpInstructions || "",
+                            status: prescription.status,
+                          });
+                          
+                          setShowForm(true);
+                        }}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                     </div>
