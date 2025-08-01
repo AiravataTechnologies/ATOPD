@@ -231,6 +231,21 @@ export interface IStorage {
   getAllPatients(): Promise<Patient[]>;
   getRecentPatients(limit: number): Promise<Patient[]>;
   getPatientsByDoctor(doctorId: string): Promise<Patient[]>;
+
+  // Prescription methods
+  createPrescription(prescription: InsertPrescription): Promise<Prescription>;
+  getPrescription(id: string): Promise<Prescription | undefined>;
+  updatePrescription(id: string, prescription: UpdatePrescription): Promise<Prescription | undefined>;
+  deletePrescription(id: string): Promise<boolean>;
+  getAllPrescriptions(): Promise<Prescription[]>;
+  getPrescriptionsByPatient(patientId: string): Promise<Prescription[]>;
+  getPrescriptionsByDoctor(doctorId: string): Promise<Prescription[]>;
+
+  // Medical Record methods
+  createMedicalRecord(record: InsertMedicalRecord): Promise<MedicalRecord>;
+  getMedicalRecord(id: string): Promise<MedicalRecord | undefined>;
+  getMedicalRecordsByPatient(patientId: string): Promise<MedicalRecord[]>;
+  getMedicalRecordsByDoctor(doctorId: string): Promise<MedicalRecord[]>;
 }
 
 // Helper function to convert MongoDB documents to typed objects with string _id
@@ -528,6 +543,136 @@ export class DatabaseStorage implements IStorage {
     const db = await this.getDb();
     const patients = await db.collection("patients").find({ doctorId }).sort({ registrationDate: -1 }).toArray();
     return patients.map(p => convertToTypedDocument<Patient>(p));
+  }
+
+  async updatePatient(id: string, updatePatient: UpdatePatient): Promise<Patient | undefined> {
+    const db = await this.getDb();
+    const result = await db.collection("patients").findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: updatePatient },
+      { returnDocument: 'after' }
+    );
+    return result ? convertToTypedDocument<Patient>(result) : undefined;
+  }
+
+  async deletePatient(id: string): Promise<boolean> {
+    const db = await this.getDb();
+    const result = await db.collection("patients").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+
+  // Prescription methods
+  async createPrescription(insertPrescription: InsertPrescription): Promise<Prescription> {
+    const db = await this.getDb();
+    
+    // Generate unique prescription ID
+    const lastPrescription = await db.collection("prescriptions")
+      .findOne({}, { sort: { prescriptionId: -1 } });
+    
+    let nextPrescriptionNumber = 1;
+    if (lastPrescription && lastPrescription.prescriptionId) {
+      const lastNumber = parseInt(lastPrescription.prescriptionId.replace("PRESC", ""));
+      nextPrescriptionNumber = lastNumber + 1;
+    }
+    
+    const prescriptionId = `PRESC${nextPrescriptionNumber.toString().padStart(4, "0")}`;
+
+    const prescriptionData = {
+      ...insertPrescription,
+      prescriptionId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await db.collection("prescriptions").insertOne(prescriptionData);
+    const newPrescription = await db.collection("prescriptions").findOne({ _id: result.insertedId });
+    return convertToTypedDocument<Prescription>(newPrescription!);
+  }
+
+  async getPrescription(id: string): Promise<Prescription | undefined> {
+    const db = await this.getDb();
+    const prescription = await db.collection("prescriptions").findOne({ _id: new ObjectId(id) });
+    return prescription ? convertToTypedDocument<Prescription>(prescription) : undefined;
+  }
+
+  async updatePrescription(id: string, updatePrescription: UpdatePrescription): Promise<Prescription | undefined> {
+    const db = await this.getDb();
+    const result = await db.collection("prescriptions").findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      { $set: { ...updatePrescription, updatedAt: new Date() } },
+      { returnDocument: 'after' }
+    );
+    return result ? convertToTypedDocument<Prescription>(result) : undefined;
+  }
+
+  async deletePrescription(id: string): Promise<boolean> {
+    const db = await this.getDb();
+    const result = await db.collection("prescriptions").deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  }
+
+  async getAllPrescriptions(): Promise<Prescription[]> {
+    const db = await this.getDb();
+    const prescriptions = await db.collection("prescriptions").find({}).sort({ createdAt: -1 }).toArray();
+    return prescriptions.map(p => convertToTypedDocument<Prescription>(p));
+  }
+
+  async getPrescriptionsByPatient(patientId: string): Promise<Prescription[]> {
+    const db = await this.getDb();
+    const prescriptions = await db.collection("prescriptions").find({ patientId }).sort({ createdAt: -1 }).toArray();
+    return prescriptions.map(p => convertToTypedDocument<Prescription>(p));
+  }
+
+  async getPrescriptionsByDoctor(doctorId: string): Promise<Prescription[]> {
+    const db = await this.getDb();
+    const prescriptions = await db.collection("prescriptions").find({ doctorId }).sort({ createdAt: -1 }).toArray();
+    return prescriptions.map(p => convertToTypedDocument<Prescription>(p));
+  }
+
+  // Medical Record methods
+  async createMedicalRecord(insertRecord: InsertMedicalRecord): Promise<MedicalRecord> {
+    const db = await this.getDb();
+    
+    // Generate unique record ID
+    const lastRecord = await db.collection("medical_records")
+      .findOne({}, { sort: { recordId: -1 } });
+    
+    let nextRecordNumber = 1;
+    if (lastRecord && lastRecord.recordId) {
+      const lastNumber = parseInt(lastRecord.recordId.replace("REC", ""));
+      nextRecordNumber = lastNumber + 1;
+    }
+    
+    const recordId = `REC${nextRecordNumber.toString().padStart(4, "0")}`;
+
+    const recordData = {
+      ...insertRecord,
+      recordId,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await db.collection("medical_records").insertOne(recordData);
+    const newRecord = await db.collection("medical_records").findOne({ _id: result.insertedId });
+    return convertToTypedDocument<MedicalRecord>(newRecord!);
+  }
+
+  async getMedicalRecord(id: string): Promise<MedicalRecord | undefined> {
+    const db = await this.getDb();
+    const record = await db.collection("medical_records").findOne({ _id: new ObjectId(id) });
+    return record ? convertToTypedDocument<MedicalRecord>(record) : undefined;
+  }
+
+  async getMedicalRecordsByPatient(patientId: string): Promise<MedicalRecord[]> {
+    const db = await this.getDb();
+    const records = await db.collection("medical_records").find({ patientId }).sort({ createdAt: -1 }).toArray();
+    return records.map(r => convertToTypedDocument<MedicalRecord>(r));
+  }
+
+  async getMedicalRecordsByDoctor(doctorId: string): Promise<MedicalRecord[]> {
+    const db = await this.getDb();
+    const records = await db.collection("medical_records").find({ doctorId }).sort({ createdAt: -1 }).toArray();
+    return records.map(r => convertToTypedDocument<MedicalRecord>(r));
   }
 }
 

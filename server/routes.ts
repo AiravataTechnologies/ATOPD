@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertHospitalSchema, updateHospitalSchema, insertOpdSchema, insertDoctorSchema, updateDoctorSchema, insertPatientSchema, updatePatientSchema } from "@shared/schema";
+import { insertHospitalSchema, updateHospitalSchema, insertOpdSchema, insertDoctorSchema, updateDoctorSchema, insertPatientSchema, updatePatientSchema, insertPrescriptionSchema, updatePrescriptionSchema, insertMedicalRecordSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -316,6 +316,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Patient deleted successfully" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete patient", error: (error as Error).message });
+    }
+  });
+
+  // Prescription routes
+  app.post("/api/prescriptions/create", async (req, res) => {
+    try {
+      const processedBody = { ...req.body };
+      
+      // Handle date fields
+      if (processedBody.visitDate) {
+        processedBody.visitDate = new Date(processedBody.visitDate);
+      }
+      if (processedBody.followUpDate) {
+        processedBody.followUpDate = new Date(processedBody.followUpDate);
+      }
+
+      const prescriptionData = insertPrescriptionSchema.parse(processedBody);
+      const prescription = await storage.createPrescription(prescriptionData);
+      res.status(201).json(prescription);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create prescription", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/prescriptions", async (req, res) => {
+    try {
+      const prescriptions = await storage.getAllPrescriptions();
+      res.json(prescriptions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch prescriptions", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/prescriptions/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const prescription = await storage.getPrescription(id);
+      if (!prescription) {
+        return res.status(404).json({ message: "Prescription not found" });
+      }
+      res.json(prescription);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch prescription", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/prescriptions/patient/:patientId", async (req, res) => {
+    try {
+      const patientId = req.params.patientId;
+      const prescriptions = await storage.getPrescriptionsByPatient(patientId);
+      res.json(prescriptions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch patient prescriptions", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/prescriptions/doctor/:doctorId", async (req, res) => {
+    try {
+      const doctorId = req.params.doctorId;
+      const prescriptions = await storage.getPrescriptionsByDoctor(doctorId);
+      res.json(prescriptions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch doctor prescriptions", error: (error as Error).message });
+    }
+  });
+
+  app.put("/api/prescriptions/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const processedBody = { ...req.body };
+      
+      // Handle date fields
+      if (processedBody.visitDate) {
+        processedBody.visitDate = new Date(processedBody.visitDate);
+      }
+      if (processedBody.followUpDate) {
+        processedBody.followUpDate = new Date(processedBody.followUpDate);
+      }
+
+      const prescriptionData = updatePrescriptionSchema.parse(processedBody);
+      const prescription = await storage.updatePrescription(id, prescriptionData);
+      if (!prescription) {
+        return res.status(404).json({ message: "Prescription not found" });
+      }
+      res.json(prescription);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update prescription", error: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/prescriptions/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const success = await storage.deletePrescription(id);
+      if (!success) {
+        return res.status(404).json({ message: "Prescription not found" });
+      }
+      res.json({ message: "Prescription deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete prescription", error: (error as Error).message });
+    }
+  });
+
+  // Medical Record routes
+  app.post("/api/medical-records/create", async (req, res) => {
+    try {
+      const processedBody = { ...req.body };
+      
+      // Handle date fields
+      if (processedBody.visitDate) {
+        processedBody.visitDate = new Date(processedBody.visitDate);
+      }
+
+      const recordData = insertMedicalRecordSchema.parse(processedBody);
+      const record = await storage.createMedicalRecord(recordData);
+      res.status(201).json(record);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create medical record", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/medical-records/patient/:patientId", async (req, res) => {
+    try {
+      const patientId = req.params.patientId;
+      const records = await storage.getMedicalRecordsByPatient(patientId);
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch patient medical records", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/medical-records/doctor/:doctorId", async (req, res) => {
+    try {
+      const doctorId = req.params.doctorId;
+      const records = await storage.getMedicalRecordsByDoctor(doctorId);
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch doctor medical records", error: (error as Error).message });
     }
   });
 

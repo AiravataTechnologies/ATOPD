@@ -9,6 +9,8 @@ import HospitalRegistration from "@/pages/hospital-registration";
 import OPDManagement from "@/pages/opd-management";
 import DoctorRegistration from "@/pages/doctor-registration";
 import PatientRegistration from "@/pages/patient-registration";
+import PatientEdit from "@/pages/patient-edit";
+import PrescriptionManagement from "@/pages/prescription-management";
 import Navigation from "@/components/navigation";
 import Sidebar from "@/components/sidebar";
 
@@ -20,6 +22,8 @@ function Router() {
       <Route path="/opds" component={OPDManagement} />
       <Route path="/doctors" component={DoctorRegistration} />
       <Route path="/patients" component={PatientRegistration} />
+      <Route path="/patients/:id/edit" component={PatientEdit} />
+      <Route path="/prescriptions" component={PrescriptionManagement} />
       <Route component={NotFound} />
     </Switch>
   );

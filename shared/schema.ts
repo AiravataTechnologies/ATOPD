@@ -247,3 +247,173 @@ export type UpdatePatient = z.infer<typeof updatePatientSchema>;
 
 export type User = z.infer<typeof userSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+// Prescription and Medical Records Schemas
+export const prescriptionSchema = z.object({
+  _id: z.string().optional(),
+  prescriptionId: z.string(), // Auto-generated unique ID (PRESC001, PRESC002, etc.)
+  
+  // Patient & Doctor Info
+  patientId: z.string(),
+  doctorId: z.string(),
+  hospitalId: z.string(),
+  opdId: z.string(),
+  
+  // Visit Information
+  visitDate: z.date().default(() => new Date()),
+  visitType: z.enum(["Follow-up", "New Consultation", "Emergency", "Check-up"]).default("New Consultation"),
+  chiefComplaint: z.string(),
+  symptoms: z.array(z.string()).default([]),
+  
+  // Clinical Examination
+  vitalSigns: z.object({
+    temperature: z.number().optional(),
+    bloodPressure: z.string().optional(), // "120/80"
+    pulse: z.number().optional(),
+    respiratoryRate: z.number().optional(),
+    oxygenSaturation: z.number().optional(),
+    weight: z.number().optional(),
+    height: z.number().optional(),
+  }).optional(),
+  
+  // Diagnosis
+  diagnosis: z.array(z.string()).default([]),
+  clinicalNotes: z.string().optional(),
+  
+  // Prescription Details
+  medications: z.array(z.object({
+    medicineName: z.string(),
+    dosage: z.string(), // "500mg"
+    frequency: z.string(), // "Twice daily"
+    duration: z.string(), // "7 days"
+    instructions: z.string().optional(), // "Take after meals"
+    quantity: z.number().optional(),
+  })).default([]),
+  
+  // Digital Prescription Canvas
+  prescriptionCanvas: z.string().optional(), // Base64 encoded canvas data
+  prescriptionText: z.string().optional(), // OCR or manual text entry
+  
+  // Lab Tests & Reports
+  labTests: z.array(z.object({
+    testName: z.string(),
+    instructions: z.string().optional(),
+    urgency: z.enum(["Routine", "Urgent", "STAT"]).default("Routine"),
+  })).default([]),
+  
+  // Follow-up
+  followUpDate: z.date().optional(),
+  followUpInstructions: z.string().optional(),
+  
+  // Status & Metadata
+  status: z.enum(["Active", "Completed", "Cancelled"]).default("Active"),
+  createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().default(() => new Date()),
+});
+
+export const medicalRecordSchema = z.object({
+  _id: z.string().optional(),
+  recordId: z.string(), // Auto-generated unique ID
+  
+  // Patient Info
+  patientId: z.string(),
+  hospitalId: z.string(),
+  
+  // Record Details
+  recordType: z.enum(["Prescription", "Lab Report", "Imaging", "Discharge Summary", "Progress Note"]),
+  title: z.string(),
+  content: z.string(),
+  
+  // Associated Files/Images
+  attachments: z.array(z.object({
+    fileName: z.string(),
+    fileType: z.string(),
+    fileUrl: z.string(),
+    uploadDate: z.date().default(() => new Date()),
+  })).default([]),
+  
+  // Doctor & Visit Info
+  doctorId: z.string(),
+  prescriptionId: z.string().optional(), // Link to prescription if applicable
+  visitDate: z.date(),
+  
+  // Metadata
+  createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().default(() => new Date()),
+});
+
+// Canvas Drawing Schema for Tablet Prescription Writing
+export const canvasDrawingSchema = z.object({
+  _id: z.string().optional(),
+  drawingId: z.string(),
+  
+  // Associated Records
+  prescriptionId: z.string(),
+  doctorId: z.string(),
+  patientId: z.string(),
+  
+  // Canvas Data
+  canvasData: z.string(), // Base64 encoded canvas image
+  canvasWidth: z.number().default(800),
+  canvasHeight: z.number().default(600),
+  
+  // Drawing Metadata
+  strokes: z.array(z.object({
+    points: z.array(z.object({
+      x: z.number(),
+      y: z.number(),
+      pressure: z.number().optional(),
+    })),
+    color: z.string().default("#000000"),
+    width: z.number().default(2),
+    timestamp: z.number(),
+  })).default([]),
+  
+  // Recognition & OCR
+  recognizedText: z.string().optional(),
+  confidence: z.number().optional(),
+  
+  createdAt: z.date().default(() => new Date()),
+  updatedAt: z.date().default(() => new Date()),
+});
+
+// Insert Schemas
+export const insertPrescriptionSchema = prescriptionSchema.omit({
+  _id: true,
+  prescriptionId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updatePrescriptionSchema = prescriptionSchema.omit({
+  _id: true,
+  prescriptionId: true,
+  createdAt: true,
+}).extend({
+  updatedAt: z.date().default(() => new Date()),
+}).partial();
+
+export const insertMedicalRecordSchema = medicalRecordSchema.omit({
+  _id: true,
+  recordId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCanvasDrawingSchema = canvasDrawingSchema.omit({
+  _id: true,
+  drawingId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types
+export type Prescription = z.infer<typeof prescriptionSchema>;
+export type InsertPrescription = z.infer<typeof insertPrescriptionSchema>;
+export type UpdatePrescription = z.infer<typeof updatePrescriptionSchema>;
+
+export type MedicalRecord = z.infer<typeof medicalRecordSchema>;
+export type InsertMedicalRecord = z.infer<typeof insertMedicalRecordSchema>;
+
+export type CanvasDrawing = z.infer<typeof canvasDrawingSchema>;
+export type InsertCanvasDrawing = z.infer<typeof insertCanvasDrawingSchema>;

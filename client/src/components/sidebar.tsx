@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Hospital, Building2, UserRound, Users } from "lucide-react";
+import { Home, Hospital, Building2, UserRound, Users, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavigationItem, QuickStat } from "@/lib/types";
 
@@ -29,6 +29,11 @@ const navigationItems: NavigationItem[] = [
     icon: "users",
     label: "Patient Registration",
   },
+  {
+    href: "/prescriptions",
+    icon: "fileText",
+    label: "Prescription Management",
+  },
 ];
 
 const iconMap = {
@@ -37,6 +42,7 @@ const iconMap = {
   building2: Building2,
   userMd: UserRound,
   users: Users,
+  fileText: FileText,
 };
 
 interface SidebarProps {

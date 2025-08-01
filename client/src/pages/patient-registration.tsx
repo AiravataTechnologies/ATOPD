@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { insertPatientSchema, updatePatientSchema, type InsertPatient, type UpdatePatient, type Patient, type Doctor, type Hospital, type Opd } from "@shared/schema";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Plus, User, Phone, Heart, Calendar, PhoneCall, Camera, Eye, Edit, Trash2, Upload, UserCircle, MapPin, Activity, Clock, Users } from "lucide-react";
+import { Plus, User, Phone, Heart, Calendar, PhoneCall, Camera, Eye, Edit, Trash2, Upload, UserCircle, MapPin, Activity, Clock, Users, Mail, X, Stethoscope } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
@@ -967,7 +967,7 @@ export default function PatientRegistration() {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0"
-                          onClick={() => setEditingPatient(patient)}
+                          onClick={() => window.location.href = `/patients/${patient._id}/edit`}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -1048,6 +1048,26 @@ export default function PatientRegistration() {
                           <p className="text-xs text-amber-700">{patient.symptoms.substring(0, 100)}{patient.symptoms.length > 100 ? '...' : ''}</p>
                         </div>
                       )}
+                    </div>
+                    
+                    <div className="border-t pt-4 mt-4">
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          className="flex-1"
+                          onClick={() => window.location.href = `/prescriptions?patientId=${patient._id}`}
+                        >
+                          <Stethoscope className="h-4 w-4 mr-1" />
+                          Write Prescription
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.location.href = `/patients/${patient._id}/edit`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
