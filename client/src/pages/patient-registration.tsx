@@ -84,7 +84,7 @@ export default function PatientRegistration() {
       familyHistory: "",
       visitType: "New" as const,
       doctorId: "",
-      appointmentDate: new Date().toISOString().split('T')[0], // Use string format for input
+      appointmentDate: new Date().toISOString().slice(0, 16), // Use datetime-local format
       symptoms: "",
       emergencyContactName: "",
       emergencyContactNumber: "",
@@ -381,7 +381,7 @@ export default function PatientRegistration() {
                     <Input
                       id="dob"
                       type="date"
-                      {...form.register("dob", { valueAsDate: true })}
+                      {...form.register("dob")}
                     />
                     {form.formState.errors.dob && (
                       <p className="text-sm text-destructive mt-1">
@@ -686,7 +686,7 @@ export default function PatientRegistration() {
                     <Input
                       id="appointmentDate"
                       type="datetime-local"
-                      {...form.register("appointmentDate", { valueAsDate: true })}
+                      {...form.register("appointmentDate")}
                     />
                     {form.formState.errors.appointmentDate && (
                       <p className="text-sm text-destructive mt-1">
