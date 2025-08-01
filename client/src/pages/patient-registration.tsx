@@ -16,11 +16,16 @@ import { Plus, User, Phone, Heart, Calendar, PhoneCall, Camera, Eye, Edit, Trash
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 
-type PatientFormData = Omit<InsertPatient, "existingConditions" | "allergies" | "medications" | "pastDiseases"> & {
+type PatientFormData = Omit<InsertPatient, "existingConditions" | "allergies" | "medications" | "pastDiseases" | "dob" | "appointmentDate" | "hospitalId" | "opdId" | "doctorId"> & {
   existingConditions: string;
   allergies: string;
   medications: string;
   pastDiseases: string;
+  dob: string;
+  appointmentDate: string;
+  hospitalId?: string;
+  opdId?: string;
+  doctorId?: string;
 };
 
 export default function PatientRegistration() {
@@ -38,19 +43,31 @@ export default function PatientRegistration() {
   const form = useForm<PatientFormData>({
     resolver: zodResolver(
       insertPatientSchema
-        .omit({ existingConditions: true, allergies: true, medications: true, pastDiseases: true, doctorId: true })
+        .omit({ 
+          existingConditions: true, 
+          allergies: true, 
+          medications: true, 
+          pastDiseases: true, 
+          doctorId: true,
+          hospitalId: true,
+          opdId: true 
+        })
         .extend({
           existingConditions: z.string().optional(),
           allergies: z.string().optional(),
           medications: z.string().optional(),
           pastDiseases: z.string().optional(),
-          doctorId: z.string().optional(), // Make doctorId optional for form validation
+          doctorId: z.string().optional(),
+          hospitalId: z.string().optional(),
+          opdId: z.string().optional(),
+          dob: z.string(),
+          appointmentDate: z.string(),
         })
     ),
     defaultValues: {
       fullName: "",
       gender: "Male" as const,
-      dob: new Date(),
+      dob: new Date().toISOString().split('T')[0], // Use string format for input
       bloodGroup: "",
       mobileNumber: "",
       email: "",
@@ -67,7 +84,7 @@ export default function PatientRegistration() {
       familyHistory: "",
       visitType: "New" as const,
       doctorId: "",
-      appointmentDate: new Date(),
+      appointmentDate: new Date().toISOString().split('T')[0], // Use string format for input
       symptoms: "",
       emergencyContactName: "",
       emergencyContactNumber: "",
